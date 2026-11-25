@@ -157,9 +157,9 @@ static void PaintUpdatePanel(const SSurf* s, TargetList* tl) {
     int32_t x, cw;
     char text[96];
     CColumn(s->w, 3, 0, 1, &x, &cw);
-    CCell(s, tl, x, y, cw, CC_CELL_H, "CHANNEL", st.prerelease ? "+ BETAS" : "STABLE", CC_TEXT, SS_ACT_UPDATE_CHANNEL, 0);
+    CCell(s, tl, x, y, cw, CCellHeight(), "CHANNEL", st.prerelease ? "+ BETAS" : "STABLE", CC_TEXT, SS_ACT_UPDATE_CHANNEL, 0);
     CColumn(s->w, 3, 1, 1, &x, &cw);
-    CCell(s, tl, x, y, cw, CC_CELL_H, "AUTO UPDATE", Port_Config_GetAutoUpdate() ? "ON" : "OFF",
+    CCell(s, tl, x, y, cw, CCellHeight(), "AUTO UPDATE", Port_Config_GetAutoUpdate() ? "ON" : "OFF",
           Port_Config_GetAutoUpdate() ? CC_GOOD : CC_DIM, SS_ACT_UPDATE_AUTO, 0);
     CColumn(s->w, 3, 2, 1, &x, &cw);
     /* st.version already says BETA when the release found is a pre-release. */
@@ -168,8 +168,8 @@ static void PaintUpdatePanel(const SSurf* s, TargetList* tl) {
     } else {
         UpdateUpper(text, sizeof(text), Port_Text_Tr("NONE"));
     }
-    CCell(s, tl, x, y, cw, CC_CELL_H, "RELEASE", text, notes ? CC_ACCENT : CC_TEXT, SS_ACT_UPDATE_RELEASE, 0);
-    y += CC_CELL_H + CC_GAP;
+    CCell(s, tl, x, y, cw, CCellHeight(), "RELEASE", text, notes ? CC_ACCENT : CC_TEXT, SS_ACT_UPDATE_RELEASE, 0);
+    y += CCellHeight() + CC_GAP;
 
     /* Status: what the updater says, or the question while a install waits. */
     const char* message = confirm ? "DOWNLOAD AND INSTALL THIS VERSION?" : st.message;

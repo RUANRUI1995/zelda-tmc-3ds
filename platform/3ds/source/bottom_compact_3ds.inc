@@ -98,8 +98,14 @@ enum {
     CC_TAB_H = 24,     /* tab bar height; the content starts 2 px away from it */
     CC_MARGIN = 3,
     CC_GAP = 3,
-    CC_CELL_H = 25,    /* name row + value row */
+    CC_CELL_H = 25,    /* name row + value row, in the Latin face */
 };
+
+/* A cell stacks a name row and a value row. The Chinese face is 12 px tall
+ * against the Latin 7, so the cell grows with it: 2 + 12 + 3 + 12 + 3. */
+static int32_t CCellHeight(void) {
+    return Port_Text_GetLanguage() == PORT_TEXT_ZH ? 32 : CC_CELL_H;
+}
 
 /* Where the tab bar and the content go (OPTIONS -> TABS). */
 static int32_t CcTabY(int32_t h) {
@@ -296,8 +302,10 @@ static void CWindow(const SSurf* s, int32_t x, int32_t y, int32_t w, int32_t h, 
 static void CCell(const SSurf* s, TargetList* tl, int32_t x, int32_t y, int32_t w, int32_t h, const char* name,
                   const char* value, uint32_t valueColor, uint8_t action, uint8_t arg) {
     CBox(s, x, y, w, h, CC_CELL, action ? CC_CELL_EDGE : CC_TAB);
-    CText(s, x + 4, y + 4, CC_DIM, name);
-    CText(s, x + 4, y + 14, valueColor, value);
+    /* Two rows of 12 px need the taller cell: 2 + 12 + 3 + 12 fits in 32. */
+    const bool zh = Port_Text_GetLanguage() == PORT_TEXT_ZH;
+    CText(s, x + 4, y + (zh ? 2 : 4), CC_DIM, name);
+    CText(s, x + 4, y + (zh ? 17 : 14), valueColor, value);
     if (action) {
         AddTarget(tl, (float)x, (float)y, (float)(x + w), (float)(y + h), action, arg);
     }
@@ -534,7 +542,7 @@ static uint32_t CompactSettingValue(int setting, char* out, int cap) {
 }
 
 static int32_t CRowY(int row) {
-    return CcContentTop() + 2 + row * (CC_CELL_H + CC_GAP);
+    return CcContentTop() + 2 + row * (CCellHeight() + CC_GAP);
 }
 
 static void CSettingCellAt(const SSurf* s, TargetList* tl, int32_t y, int col, int span, const char* name,
@@ -543,7 +551,7 @@ static void CSettingCellAt(const SSurf* s, TargetList* tl, int32_t y, int col, i
     char value[24];
     CColumn(s->w, 4, col, span, &x, &w);
     uint32_t color = CompactSettingValue(setting, value, sizeof(value));
-    CCell(s, tl, x, y, w, CC_CELL_H, name, value, color, SS_ACT_SETTING, (uint8_t)setting);
+    CCell(s, tl, x, y, w, CCellHeight(), name, value, color, SS_ACT_SETTING, (uint8_t)setting);
 }
 
 static void CSettingCell(const SSurf* s, TargetList* tl, int row, int col, int span, const char* name, int setting) {
@@ -613,11 +621,13 @@ static void COptTitle(const SSurf* s, int32_t y, const char* title) {
  * the tab bar is never painted over and a cell cut by the view is cut cleanly. */
 enum {
     OPT_TITLE_H = 12,
-    OPT_ROW_H = CC_CELL_H + CC_GAP,
     OPT_FOOTER_H = 3 * 10 + 6,
-    /* top margin + 4 group titles + 6 rows of cells + the footer + bottom margin */
-    OPT_TOTAL_H = 2 + 4 * OPT_TITLE_H + 6 * OPT_ROW_H + OPT_FOOTER_H + CC_MARGIN,
 };
+/* The OPTIONS list scrolls (drag), so its row height and total height follow
+ * the face; macros, because a cell is not a compile-time constant any more. */
+#define OPT_ROW_H (CCellHeight() + CC_GAP)
+/* top margin + 4 group titles + 6 rows of cells + the footer + bottom margin */
+#define OPT_TOTAL_H (2 + 4 * OPT_TITLE_H + 6 * OPT_ROW_H + OPT_FOOTER_H + CC_MARGIN)
 static float sOptScroll;
 
 static void Compact_PaintOptions(const SSurf* s, TargetList* tl) {
@@ -664,9 +674,9 @@ static void Compact_PaintOptions(const SSurf* s, TargetList* tl) {
     {
         int32_t x, w;
         CColumn(t->w, 4, 0, 1, &x, &w);
-        CCell(t, tl, x, y, w, CC_CELL_H, "THEME", sCc->name, CC_ACCENT, SS_ACT_THEME, 0);
+        CCell(t, tl, x, y, w, CCellHeight(), "THEME", sCc->name, CC_ACCENT, SS_ACT_THEME, 0);
         CColumn(t->w, 4, 1, 1, &x, &w);
-        CCell(t, tl, x, y, w, CC_CELL_H, "TABS", sCcTabsBottom ? "BOTTOM" : "TOP", CC_TEXT, SS_ACT_TABS, 0);
+        CCell(t, tl, x, y, w, CCellHeight(), "TABS", sCcTabsBottom ? "BOTTOM" : "TOP", CC_TEXT, SS_ACT_TABS, 0);
     }
     CSettingCellAt(t, tl, y, 2, 1, "SHOW FPS", SS_SET_SHOW_FPS);
     y += OPT_ROW_H;
@@ -679,7 +689,7 @@ static void Compact_PaintOptions(const SSurf* s, TargetList* tl) {
         UpdateStatus st;
         Updater_GetStatus(&st);
         const char* value = st.state == UPDATE_AVAILABLE ? "NEW VERSION" : (st.prerelease ? "+ BETAS" : "STABLE");
-        CCell(t, tl, x, y, w, CC_CELL_H, "UPDATES", value, st.state == UPDATE_AVAILABLE ? CC_WARN : CC_TEXT,
+        CCell(t, tl, x, y, w, CCellHeight(), "UPDATES", value, st.state == UPDATE_AVAILABLE ? CC_WARN : CC_TEXT,
               SS_ACT_SETTINGS_PAGE, SS_SETTINGS_UPDATE);
     }
     y += OPT_ROW_H;
@@ -1199,10 +1209,10 @@ enum {
 static void CRunCell(const SSurf* s, TargetList* tl, int32_t x, int32_t y, int32_t w, const char* name,
                      const char* value, uint32_t valueColor, int running, uint8_t runCmd, uint8_t optionCmd) {
     const int32_t bw = 18;
-    CBox(s, x, y, w, CC_CELL_H, CC_CELL, CC_CELL_EDGE);
+    CBox(s, x, y, w, CCellHeight(), CC_CELL, CC_CELL_EDGE);
     CText(s, x + 4, y + 4, CC_DIM, name);
     CText(s, x + 4, y + 14, valueColor, value);
-    int32_t bx = x + w - bw - 2, by = y + 2, bh = CC_CELL_H - 4;
+    int32_t bx = x + w - bw - 2, by = y + 2, bh = CCellHeight() - 4;
     CBox(s, bx, by, bw, bh, running ? CC_BAR : CC_BTN, running ? sCc->barBad : CC_BTN_EDGE);
     int32_t cx = bx + bw / 2, cy = by + bh / 2;
     if (running) {
@@ -1210,8 +1220,8 @@ static void CRunCell(const SSurf* s, TargetList* tl, int32_t x, int32_t y, int32
     } else {
         for (int i = 0; i < 7; i++) FillRect(s, cx - 3 + i, cy - 3 + i / 2, cx - 2 + i, cy + 4 - i / 2, CC_GOOD);
     }
-    AddTarget(tl, (float)bx, (float)y, (float)(x + w), (float)(y + CC_CELL_H), SS_ACT_DEBUG, runCmd);
-    if (optionCmd) AddTarget(tl, (float)x, (float)y, (float)bx, (float)(y + CC_CELL_H), SS_ACT_DEBUG, optionCmd);
+    AddTarget(tl, (float)bx, (float)y, (float)(x + w), (float)(y + CCellHeight()), SS_ACT_DEBUG, runCmd);
+    if (optionCmd) AddTarget(tl, (float)x, (float)y, (float)bx, (float)(y + CCellHeight()), SS_ACT_DEBUG, optionCmd);
 }
 
 static void CSectionTitle(const SSurf* s, int32_t y, const char* title) {
@@ -1239,12 +1249,12 @@ static void Compact_PaintDebugMain(const SSurf* s, TargetList* tl, const SecondS
             double f = i == 1 ? now : avg;
             color = f >= 59.0 ? CC_GOOD : (f >= 50.0 ? CC_WARN : CC_BAD);
         }
-        CCell(s, tl, x, CRowY(i / 4), w, CC_CELL_H, kNames[i], v[i], color, 0, 0);
+        CCell(s, tl, x, CRowY(i / 4), w, CCellHeight(), kNames[i], v[i], color, 0, 0);
     }
     {
         int32_t x, w;
         CColumn(s->w, 4, 3, 1, &x, &w);
-        CCell(s, tl, x, CRowY(1), w, CC_CELL_H, "SWITCHES", "PERF >", CC_ACCENT, SS_ACT_DEBUG,
+        CCell(s, tl, x, CRowY(1), w, CCellHeight(), "SWITCHES", "PERF >", CC_ACCENT, SS_ACT_DEBUG,
               DBG_CMD_PAGE_SWITCHES);
     }
 
@@ -1267,11 +1277,11 @@ static void Compact_PaintDebugMain(const SSurf* s, TargetList* tl, const SecondS
     CRunCell(s, tl, x, y, w, "PERF RECORDER", value, DebugPerf_Running() ? CC_GOOD : CC_DIM, DebugPerf_Running(),
              DBG_CMD_PERF_RUN, 0);
 
-    y += CC_CELL_H + CC_GAP + 2;
+    y += CCellHeight() + CC_GAP + 2;
     CSectionTitle(s, y, "TOOLS");
     y += 10;
     CColumn(s->w, 4, 0, 1, &x, &w);
-    CCell(s, tl, x, y, w, CC_CELL_H, "LOG MARK", DebugLog_Running() ? "WRITE" : "LOG OFF",
+    CCell(s, tl, x, y, w, CCellHeight(), "LOG MARK", DebugLog_Running() ? "WRITE" : "LOG OFF",
           DebugLog_Running() ? CC_ACCENT : CC_FAINT, SS_ACT_DEBUG, DBG_CMD_LOG_MARK);
     /* SCREEN DUMP: both screens, the memories and the frame's state as numbered
      * debug/tmc-dump-NNNN-* files, written at the next frame boundary (as
@@ -1281,14 +1291,14 @@ static void Compact_PaintDebugMain(const SSurf* s, TargetList* tl, const SecondS
     (void)loadStateFlashUntil;
     (void)loadStateResult;
     CColumn(s->w, 4, 1, 2, &x, &w);
-    CCell(s, tl, x, y, w, CC_CELL_H, "SCREEN DUMP", dumped ? "QUEUED" : "TAKE", dumped ? CC_GOOD : CC_ACCENT,
+    CCell(s, tl, x, y, w, CCellHeight(), "SCREEN DUMP", dumped ? "QUEUED" : "TAKE", dumped ? CC_GOOD : CC_ACCENT,
           SS_ACT_DEVELOPER_DUMP, 0);
     CSettingCellAt(s, tl, y, 3, 1, "SHOW FPS", SS_SET_SHOW_FPS);
 
     /* GPU CHECK: the next frame drawn by both renderers and compared; a frame
      * that differs is saved as debug/tmc-check-NNNN-* (a screen dump takes the
      * check too, into its own set). */
-    y += CC_CELL_H + CC_GAP;
+    y += CCellHeight() + CC_GAP;
     PortPpuGpu3DSStats gpu;
     PortPpuGpu3DS_GetStats(&gpu);
     CColumn(s->w, 4, 0, 2, &x, &w);
@@ -1322,7 +1332,7 @@ static void Compact_PaintDebugMain(const SSurf* s, TargetList* tl, const SecondS
     } else {
         snprintf(value, sizeof(value), "COMPARE NEXT FRAME");
     }
-    CCell(s, tl, x, y, w, CC_CELL_H, "GPU CHECK", value, color, gpu.initialized ? SS_ACT_DEBUG : 0,
+    CCell(s, tl, x, y, w, CCellHeight(), "GPU CHECK", value, color, gpu.initialized ? SS_ACT_DEBUG : 0,
           DBG_CMD_GPU_CHECK);
 }
 
@@ -1337,10 +1347,10 @@ static void Compact_PaintDebugSwitches(const SSurf* s, TargetList* tl) {
         DebugSwitch_Value(id, value, sizeof(value));
         CColumn(s->w, 4, id % 4, 1, &x, &w);
         uint32_t color = DebugSwitch_IsDefault(id) ? CC_TEXT : CC_ACCENT;
-        CCell(s, tl, x, y0 + (id / 4) * (CC_CELL_H + CC_GAP), w, CC_CELL_H, DebugSwitch_Name(id), value, color,
+        CCell(s, tl, x, y0 + (id / 4) * (CCellHeight() + CC_GAP), w, CCellHeight(), DebugSwitch_Name(id), value, color,
               SS_ACT_DEBUG, (uint8_t)(DBG_CMD_SWITCH0 + id));
     }
-    int32_t y = y0 + ((DEBUG_SW_COUNT + 3) / 4) * (CC_CELL_H + CC_GAP) + 2;
+    int32_t y = y0 + ((DEBUG_SW_COUNT + 3) / 4) * (CCellHeight() + CC_GAP) + 2;
     CText(s, CC_MARGIN + 1, y, CC_FAINT, "WHITE: DEFAULT  BLUE: CHANGED  (TMC3DS.INI)");
     CText(s, CC_MARGIN + 1, y + 10, CC_FAINT, "PLANE TINT LAYERS: BG0 PINK BG1 CYAN BG2 ORANGE BG3 GREEN");
     CText(s, CC_MARGIN + 1, y + 20, CC_FAINT, "SPRITES WHITE, DARKER AT THE BACK. DEPTH: BLUE, BRIGHT IN FRONT");
@@ -2165,20 +2175,20 @@ static void Compact_PaintRaList(const SSurf* s, TargetList* tl) {
         RetroAch_User(buf, sizeof(buf));
         buf[(w - 8) / kUiAdvance < (int)sizeof(buf) ? (w - 8) / kUiAdvance : (int)sizeof(buf) - 1] = 0;
     }
-    CCell(s, tl, x, top, w, CC_CELL_H, armed ? "LOG OUT?" : "ACCOUNT", loggedIn ? buf : "LOG IN",
+    CCell(s, tl, x, top, w, CCellHeight(), armed ? "LOG OUT?" : "ACCOUNT", loggedIn ? buf : "LOG IN",
           armed ? CC_WARN : (loggedIn ? CC_TEXT : CC_ACCENT), SS_ACT_RETRO, RA_CMD_ACCOUNT);
     const bool on = RetroAch_Enabled();
     CColumn(s->w, 4, 1, 1, &x, &w);
-    CCell(s, tl, x, top, w, CC_CELL_H, "ACTIVE", on ? "ON" : "OFF", on ? CC_GOOD : CC_DIM, SS_ACT_RETRO, RA_CMD_ENABLE);
+    CCell(s, tl, x, top, w, CCellHeight(), "ACTIVE", on ? "ON" : "OFF", on ? CC_GOOD : CC_DIM, SS_ACT_RETRO, RA_CMD_ENABLE);
     CColumn(s->w, 4, 2, 1, &x, &w);
-    CCell(s, tl, x, top, w, CC_CELL_H, "NOTICE", RetroAch_NotifyTop() ? "TOP" : "BOTTOM", CC_TEXT, SS_ACT_RETRO,
+    CCell(s, tl, x, top, w, CCellHeight(), "NOTICE", RetroAch_NotifyTop() ? "TOP" : "BOTTOM", CC_TEXT, SS_ACT_RETRO,
           RA_CMD_NOTIFY);
     CColumn(s->w, 4, 3, 1, &x, &w);
     const bool snd = RetroAch_Sound();
-    CCell(s, tl, x, top, w, CC_CELL_H, "SOUND", snd ? "ON" : "OFF", snd ? CC_GOOD : CC_DIM, SS_ACT_RETRO, RA_CMD_SOUND);
+    CCell(s, tl, x, top, w, CCellHeight(), "SOUND", snd ? "ON" : "OFF", snd ? CC_GOOD : CC_DIM, SS_ACT_RETRO, RA_CMD_SOUND);
 
     /* The server's last word, or the connection state; the sample notice on its right. */
-    int32_t y = top + CC_CELL_H + CC_GAP;
+    int32_t y = top + CCellHeight() + CC_GAP;
     uint32_t color;
     Compact_RaStatusLine(buf, sizeof(buf), &color);
     const int32_t testW = 44;
