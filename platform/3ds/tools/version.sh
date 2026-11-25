@@ -57,7 +57,19 @@ esac
 case "$REL" in
   release/v*) ;;
   *)
-    echo "0.0.0-dev+$HASH"
+    # Not on a release branch (a fork's main, a CI build of a topic branch):
+    # describe from the newest tag of this fork's own line instead of giving up.
+    # v0.* only: the upstream port's v2.x tags live in this repository too and
+    # are a different version lineage, never this build's ancestor.
+    # main then reads 0.4.7-dev.7+<hash>, which keeps the updater's ordering
+    # meaningful and the package name readable.
+    BASE_TAG=$(git describe --tags --abbrev=0 --match 'v0.[0-9]*.[0-9]*' 2>/dev/null || true)
+    if [ -n "$BASE_TAG" ] && is_ours "$BASE_TAG"; then
+      AHEAD=$(git rev-list --count "${BASE_TAG}..HEAD" 2>/dev/null || echo 0)
+      echo "${BASE_TAG#v}-dev.${AHEAD}+$HASH"
+    else
+      echo "0.0.0-dev+$HASH"
+    fi
     exit 0
     ;;
 esac
