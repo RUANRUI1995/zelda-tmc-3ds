@@ -138,6 +138,12 @@ static int32_t CLineHeight(void) {
     return Port_Text_GetLanguage() == PORT_TEXT_ZH ? UI_CJK_CELL_H + 2 : 10;
 }
 
+/* A hand-tuned step between two rows of text (the save slot's columns): the
+ * Latin value stays as drawn, the Chinese face takes its own line height. */
+static int32_t CRowStep(int32_t latinStep) {
+    return Port_Text_GetLanguage() == PORT_TEXT_ZH ? CLineHeight() : latinStep;
+}
+
 /* One line in the CJK face. Rows arrive as 2 bytes per row, bit 15 leftmost.
  * Stops before the pen would pass maxWidth (0 = no limit), which is how the
  * wrappers below cut a line without copying it first. */
@@ -621,8 +627,8 @@ static void COptTitle(const SSurf* s, int32_t y, const char* title) {
  * the tab bar is never painted over and a cell cut by the view is cut cleanly. */
 enum {
     OPT_TITLE_H = 12,
-    OPT_FOOTER_H = 3 * 10 + 6,
 };
+#define OPT_FOOTER_H (3 * CLineHeight() + 6)
 /* The OPTIONS list scrolls (drag), so its row height and total height follow
  * the face; macros, because a cell is not a compile-time constant any more. */
 #define OPT_ROW_H (CCellHeight() + CC_GAP)
@@ -697,12 +703,13 @@ static void Compact_PaintOptions(const SSurf* s, TargetList* tl) {
     /* Footer: who we are and what we are built on. */
     char line[64];
     y += 2;
+    const int32_t footH = CLineHeight();
     CTextCentered(t, t->w / 2, y, CC_DIM, "MINISH CAP 3DS");
     snprintf(line, sizeof(line), "V%s", TMC_PORT_VERSION_LABEL);
-    CTextCentered(t, t->w / 2, y + 10, CC_TEXT, line);
+    CTextCentered(t, t->w / 2, y + footH, CC_TEXT, line);
     snprintf(line, sizeof(line), "BASED ON ESTEBANPDN %s%s", TMC_UPSTREAM_VERSION,
              TMC3DS_DEBUG_TOOLS ? "  - DEBUG BUILD" : "");
-    CTextCentered(t, t->w / 2, y + 20, TMC3DS_DEBUG_TOOLS ? CC_WARN : CC_FAINT, line);
+    CTextCentered(t, t->w / 2, y + 2 * footH, TMC3DS_DEBUG_TOOLS ? CC_WARN : CC_FAINT, line);
 
     CScrollBar(&v, top, sOptScroll, maxScroll, OPT_TOTAL_H);
     CScrollTargets(tl, firstTarget, top, bottom);
@@ -1063,31 +1070,31 @@ static void Compact_PaintStatesDetail(const SSurf* s, TargetList* tl, uint32_t i
     char buf[40], area[24];
     snprintf(buf, sizeof(buf), "%s %d", Port_Text_Tr("STATE"), number);
     CText(s, tx, ty, CC_ACCENT, buf);
-    ty += 13;
+    ty += CRowStep(13);
     const char* name = Compact_StatesArea(info.area, area, sizeof(area));
     snprintf(buf, sizeof(buf), "%.17s", name);
     CText(s, tx, ty, CC_TEXT, buf);
     if (strlen(name) > 17) {
-        ty += 10;
+        ty += CRowStep(10);
         snprintf(buf, sizeof(buf), "%.17s", name + 17);
         CText(s, tx, ty, CC_TEXT, buf);
     }
-    ty += 11;
+    ty += CRowStep(11);
     snprintf(buf, sizeof(buf), "%s %02X", Port_Text_Tr("ROOM"), info.room);
     CText(s, tx, ty, CC_DIM, buf);
-    ty += 11;
+    ty += CRowStep(11);
     snprintf(buf, sizeof(buf), "HP %u/%u  R %u", info.health / 8u, info.maxHealth / 8u, info.rupees);
     CText(s, tx, ty, CC_DIM, buf);
-    ty += 11;
+    ty += CRowStep(11);
     Compact_StatesWhen(info.savedAt, buf, sizeof(buf));
     CText(s, tx, ty, CC_DIM, buf);
-    ty += 11;
+    ty += CRowStep(11);
     snprintf(buf, sizeof(buf), "%.17s", info.build);
     CText(s, tx, ty, CC_FAINT, buf);
-    ty += 13;
+    ty += CRowStep(13);
     if (!info.compatible) {
         CText(s, tx, ty, CC_BAD, "ANOTHER BUILD:");
-        CText(s, tx, ty + 10, CC_BAD, "CANNOT LOAD");
+        CText(s, tx, ty + CLineHeight(), CC_BAD, "CANNOT LOAD");
     }
 
     const int32_t by = top + SAVE_STATE_THUMB_H + 8;
