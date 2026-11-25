@@ -12,4 +12,4 @@
 #
 # Tags win when a clone has them; this is the fallback. Update both fields when
 # this line is retagged, and keep them pointing at the newest release.
-0.4.7 52927925b1eff006733cd2857ac39a338cd19683
+0.5.0 a54b7fb30faf5331b43fff9c55d8793fcf8fb9b6
