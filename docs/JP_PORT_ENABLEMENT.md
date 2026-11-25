@@ -107,6 +107,22 @@ The retail JP gaps listed above are unchanged by this: a clean JP ROM still uses
 `PORT_TEXT_CODEC_RETAIL` and the 9/5 bank geometry, so its menus need the same
 audit as before.
 
+## Version and updater on this fork
+
+Two things differ from tinaut1986's tree so a build of this branch cannot be
+mistaken for, or replaced by, the English-only original:
+
+- `platform/3ds/tools/version.sh` describes a build off the last `v0.*` tag
+  (`0.4.7-dev.9+<hash>`) instead of falling through to `0.0.0-dev+<hash>`. The
+  upstream port's `v2.x` tags are a different lineage and are deliberately
+  excluded from the match.
+- `UPDATE_REPOSITORY` in `platform/3ds/source/update_manifest.h` points at this
+  fork. With no release published here, CHECK FOR UPDATE ends on the existing
+  "NO RELEASE AVAILABLE" page rather than offering tinaut1986's build, which
+  would install the original port over the profile layer.
+
+Both are merge points: restore the upstream value when this work goes back.
+
 ## Related
 
 - Console-Parity mode (`--console-parity`) — run-integrity switch.
