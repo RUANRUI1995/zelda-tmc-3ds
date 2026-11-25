@@ -2,7 +2,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#define UPDATE_REPOSITORY "tinaut1986/zelda-tmc-3ds"
+// This branch carries its own ROM-profile layer (Chinese Angel SP4 ROMs, JP
+// baseline), so the updater must never pull tinaut1986's build over it: that
+// release would replace this port with the English-only original. Point it at
+// this fork. With no release published here the check lands on the existing
+// "NO RELEASE AVAILABLE" message instead of installing the wrong build.
+// Restore the upstream value when merging this work back into tinaut1986.
+#define UPDATE_REPOSITORY "RUANRUI1995/zelda-tmc-3ds"
 #define UPDATE_MAX_FILE (32u * 1024u * 1024u)
 typedef struct UpdateRelease {
   char version[48];
