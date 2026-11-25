@@ -5,13 +5,16 @@
 
 /* Languages the port's own UI text (bottom screen, updater) is translated
  * into. Follows the language the player picked in the game's file-select
- * screen; the USA ROM (English only) and the JP ROM always resolve to EN. */
+ * screen; the USA ROM (English only) and the JP ROM always resolve to EN,
+ * except that a Chinese ROM turns the port's own UI Chinese too (see
+ * Port_Text_SetChineseUi). */
 typedef enum {
     PORT_TEXT_EN = 0,
     PORT_TEXT_FR,
     PORT_TEXT_DE,
     PORT_TEXT_ES,
     PORT_TEXT_IT,
+    PORT_TEXT_ZH,
     PORT_TEXT_COUNT
 } PortTextLanguage;
 
@@ -23,6 +26,14 @@ extern "C" {
  * include/main.h, not the EU save slot). Unknown values select English. */
 void Port_Text_SetLanguage(int publicLanguage);
 PortTextLanguage Port_Text_GetLanguage(void);
+
+/* A Chinese ROM (Angel SP4) carries translated game text but reports
+ * LANGUAGE_JP, so the language above cannot tell it apart from a clean JP
+ * ROM. The 3DS build sets this once the ROM profile is known, and the port's
+ * own UI then follows the Chinese column instead. Off by default, so the
+ * other builds and the host tests keep following the game's language. */
+void Port_Text_SetChineseUi(int enabled);
+int Port_Text_ChineseUi(void);
 
 /* Translate an English UI string, keyed by its exact (upper-case) literal.
  * Strings with no entry are returned unchanged, so call sites keep the
@@ -47,6 +58,12 @@ uint8_t Port_Text_Utf8Next(const char** p);
 /* ASCII letter an accented Latin-1 code reduces to (é -> e, Ñ -> N), or 0
  * if it has none. Lets a renderer fall back when a font lacks the glyph. */
 char Port_Text_BaseLetter(uint8_t code);
+
+/* One UTF-8 code point from *p, advancing it; 0 at the NUL. A malformed byte
+ * advances one and returns 0xFFFD. This is the renderer's path — a CJK glyph
+ * is a code point, not a game-charmap byte — where Port_Text_Utf8Next above
+ * stays the game-charmap path. Never reads past the NUL. */
+uint32_t Port_Text_Utf8CodePoint(const char** p);
 
 #ifdef __cplusplus
 }

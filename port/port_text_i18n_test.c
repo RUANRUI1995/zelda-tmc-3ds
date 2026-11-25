@@ -30,6 +30,17 @@ int main(void) {
     Port_Text_SetLanguage(-1);
     CHECK(Port_Text_GetLanguage() == PORT_TEXT_EN);
 
+    /* A Chinese ROM reports Japanese (0) but carries translated text: the
+     * 3DS build marks it and the port's own UI follows the Chinese column. */
+    CHECK(Port_Text_ChineseUi() == 0);
+    Port_Text_SetChineseUi(1);
+    Port_Text_SetLanguage(0);
+    CHECK(Port_Text_GetLanguage() == PORT_TEXT_ZH);
+    CHECK(strcmp(Port_Text_Tr("BACK"), "\xE8\xBF\x94\xE5\x9B\x9E") == 0); /* 返回 */
+    Port_Text_SetChineseUi(0);
+    Port_Text_SetLanguage(0);
+    CHECK(Port_Text_GetLanguage() == PORT_TEXT_EN);
+
     /* English and unknown strings come back untouched (same pointer). */
     const char* unknown = "NOT IN THE TABLE";
     Port_Text_SetLanguage(4);
@@ -75,7 +86,7 @@ int main(void) {
         "INTERFACE", "NEIGHBOURS", "DEPTH", "LAYERS",
     };
     for (size_t i = 0; i < sizeof(kCellWords) / sizeof(kCellWords[0]); i++) {
-        for (int lang = PORT_TEXT_FR; lang < PORT_TEXT_COUNT; lang++) {
+        for (int lang = PORT_TEXT_FR; lang < PORT_TEXT_ZH; lang++) {
             const char* t = Port_Text_TrFor((PortTextLanguage)lang, kCellWords[i]);
             int n = 0;
             for (const char* p = t; *p; n++) {
@@ -85,6 +96,17 @@ int main(void) {
                 fprintf(stderr, "too wide for a cell (%d): %s -> %s\n", n, kCellWords[i], t);
                 return 1;
             }
+        }
+        /* The same cells in the CJK face: 12 px per full-width glyph against
+         * the Latin 6, so a cell holds five and a sixth starts to overflow. */
+        const char* t = Port_Text_TrFor(PORT_TEXT_ZH, kCellWords[i]);
+        int px = 0;
+        for (const char* p = t; *p;) {
+            px += Port_Text_Utf8CodePoint(&p) < 0x80 ? 6 : 12;
+        }
+        if (px > 72) {
+            fprintf(stderr, "too wide for a cell (%d px): %s -> %s\n", px, kCellWords[i], t);
+            return 1;
         }
     }
 
@@ -98,8 +120,22 @@ int main(void) {
     CHECK(*p == '\0');
     CHECK(Port_Text_Utf8Next(&p) == 0 && *p == '\0'); /* never past the NUL */
 
-    CHECK(Port_Text_BaseLetter(0xE9) == 'e');
-    CHECK(Port_Text_BaseLetter(0xC9) == 'E');
+    /* The renderer's path: a CJK code point survives as itself, and a stray
+     * byte costs one byte without running past the NUL. */
+    const char* q = "\xE8\xAE\xBE" "A"; /* 设A */
+    CHECK(Port_Text_Utf8CodePoint(&q) == 0x8BBE);
+    CHECK(Port_Text_Utf8CodePoint(&q) == 'A');
+    CHECK(Port_Text_Utf8CodePoint(&q) == 0 && *q == '\0');
+    const char* stray = "\xFF" "z";
+    CHECK(Port_Text_Utf8CodePoint(&stray) == 0xFFFD);
+    CHECK(*stray == 'z');
+    const char* cut = "\xE8\xAE"; /* a lead byte whose sequence is cut short */
+    CHECK(Port_Text_Utf8CodePoint(&cut) == 0xFFFD);
+    CHECK((unsigned char)*cut == 0xAE); /* one byte consumed, not the whole tail */
+    CHECK(Port_Text_Utf8CodePoint(&cut) == 0xFFFD);
+    CHECK(*cut == '\0');
+
+    CHECK(Port_Text_BaseLetter(0xE9) == 'e');    CHECK(Port_Text_BaseLetter(0xC9) == 'E');
     CHECK(Port_Text_BaseLetter(0xD1) == 'N');
     CHECK(Port_Text_BaseLetter(0xDC) == 'U');
     CHECK(Port_Text_BaseLetter(0xA1) == 0);
