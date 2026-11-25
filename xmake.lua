@@ -798,6 +798,9 @@ target("tmc_pc")
     add_files("port/port_icon.cpp")     -- SDL window icon (placeholder, ROM-extracted in future)
     add_files("port/port_mods.cpp")     -- Tier 1 mod loader: asset overrides from <exe>/mods/
     add_files("port/port_rom.c")        -- ROM loading & symbol resolution
+    add_files("port/port_rom_hash.c")   -- SHA-1/SHA-256 ROM identity (with per-file cache support)
+    add_files("port/port_rom_profile.c") -- Exact ROM profile table (USA/EU/JP/Angel SP4 variants)
+    add_files("port/port_text_codec.c") -- Text stream glyph codec per ROM profile
     add_files("port/port_region_data.c") -- USA-compiled data -> active-region data provenance resolver
         -- PC port stubs for undefined symbols
     add_files("port/port_stubs.c")

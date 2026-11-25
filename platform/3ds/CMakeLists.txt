@@ -99,6 +99,7 @@ list(TRANSFORM TMC_ENGINE_SOURCES PREPEND "${TMC_ROOT}/")
 set(TMC_PORT_SOURCES
     port/port_bios.c port/port_debug_verbose.c port/port_inline_ptrs.c
     port/port_script_addrs.c port/port_offset_remap.c port/port_rom.c
+    port/port_rom_hash.c port/port_rom_profile.c port/port_text_codec.c
     port/port_region_data.c
     port/port_bottle_compat.c
     port/port_bomb_compat.c
