@@ -86,6 +86,27 @@ Still needing JP treatment:
 This is the remaining path from "JP boots" to "JP speedrun-faithful". Pair a JP
 build with `--console-parity` for hardware-equivalent JP runs.
 
+### Patch profiles on the JP baseline
+
+The JP baseline is also the base for patches that only replace text and font
+data. The Angel Team Chinese SP4 patch keeps `BZMJ` and the JP gameplay data but
+moves the glyph table (to `0xDC9F00`), the glyph remap table (to `0xE4F000`,
+`0xA0` bytes) and carries 16 glyph banks with wide glyphs from bank 3. It also
+renumbers the `0x0B..0x0F` text prefixes and makes `0x0F` variable length, so its
+byte stream is not decodable with the retail rule.
+
+That is handled by the ROM profile layer rather than by `#ifdef`:
+
+- `port/port_rom_profile.c` — exact profiles, their per-variant tables and a
+  validator that checks every offset against the loaded ROM.
+- `port/port_text_codec.c` — the prefix decoder (`PORT_TEXT_CODEC_RETAIL` vs
+  `PORT_TEXT_CODEC_ANGEL_SP4`).
+- `src/text.c` — takes the bank count and the first wide bank from the profile.
+
+The retail JP gaps listed above are unchanged by this: a clean JP ROM still uses
+`PORT_TEXT_CODEC_RETAIL` and the 9/5 bank geometry, so its menus need the same
+audit as before.
+
 ## Related
 
 - Console-Parity mode (`--console-parity`) — run-integrity switch.

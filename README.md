@@ -27,6 +27,9 @@ The game is the open-source decompilation of the original, running on a native e
 
 * Both USA and European ROMs, detected automatically, with the European gameplay backports
   ([docs/eu-backport.md](docs/eu-backport.md)); no patched ROM is needed.
+* The clean Japanese ROM and the Angel Team Chinese SP4 patch, in a separate **JP** package
+  (see [ROMs and packages](#roms-and-packages)); the Chinese text renders from the ROM's own
+  font, so no translation files are involved.
 * Original, Stretch and Wide display modes, and **Full View**: Wide + Pixel Perfect draws every
   room at 400x240 (small rooms centred with black borders), on New and Old 3DS. The title
   screen, file select and the Minish portal cutscene are 400x240 too.
@@ -79,20 +82,50 @@ width is the game's real map. How it is done: [docs/wide-scene-extension.md](doc
 sdmc:/3ds/Minish Cap 3DS/
 ```
 
-3. Place your legally obtained USA or European `.gba` ROM in it. Any filename works as long as
-   the extension is `.gba`. The ROM stays on the SD card and is never included in the CIA.
+3. Place your legally obtained `.gba` ROM in it. Any filename works as long as the extension is
+   `.gba`. The ROM stays on the SD card and is never included in the CIA.
 
 If the folder has no ROM, the game reads the one in the original port's folder
 (`sdmc:/3ds/The Minish Cap 3DS/`) and offers once to copy its saves. The two applications can
 be installed side by side.
 
 The **European** ROM is recommended: it is the one used the most during development and
-testing, and it includes English. Expected clean ROM SHA-1 values:
+testing, and it includes English. Expected ROM SHA-1 values:
 
 ```text
-USA:    b4bd50e4131b027c334547b4524e2dbbd4227130
-Europe: cff199b36ff173fb6faf152653d1bccf87c26fb7
+USA:          b4bd50e4131b027c334547b4524e2dbbd4227130
+Europe:       cff199b36ff173fb6faf152653d1bccf87c26fb7
+Japan:        6c5404a1effb17f481f352181d0f1c61a2765c5d
+Angel SP4:    ba04cfbe93d12d2ad684c52234472fa12a5b53d7  (Chinese)
 ```
+
+### ROMs and packages
+
+A ROM is identified by its exact hash, not by its four-byte game code: the Chinese SP4 patch
+keeps the Japanese code `BZMJ` but moves the font and text tables, so the code alone cannot
+say which tables to read. Anything that is not one of the ROMs above is refused rather than
+booted with the wrong offsets.
+
+Two packages build from this tree:
+
+| Package | Baseline | Plays | Title ID |
+|---|---|---|---|
+| `Minish Cap 3DS` | USA (also plays Europe) | USA, Europe | `0x5A22E` |
+| `Minish Cap 3DS (JP)` | JP | clean Japan, Angel SP4 | `0x5A22F` |
+
+They install side by side, share the ROM and save folder, and each can only update itself. The
+JP package is built with `TMC3DS_REGION=JP`: CI produces it as the `tmc-3ds-packages-JP`
+artifact, and locally
+
+```bash
+TMC3DS_REGION=JP TMC3DS_BUILD_DIR=build-3ds/jp ./platform/3ds/build.sh
+```
+
+writes `build-3ds/jp/tmc-3ds-v<VERSION>-jp.cia`.
+
+Notes on the Chinese ROM: saves, save states and extracted asset caches are kept apart from the
+clean Japanese ROM's. RetroAchievements only knows the retail ROMs, so the trophy tab stays
+empty for a patched ROM.
 
 ### Audio
 

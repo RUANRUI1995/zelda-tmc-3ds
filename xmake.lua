@@ -2568,3 +2568,26 @@ target("bottom_map_camera_3ds_test")
     add_files("platform/3ds/tests/bottom_map_camera_3ds_test.c",
               "platform/3ds/source/bottom_map_anim_3ds.c")
 target_end()
+
+-- ROM identity: exact profile table + SHA-1/SHA-256 matching. Runs without a ROM
+-- (the table is checked against the shipped hash files) and without the 3DS SDK.
+target("rom_profile_test")
+    set_kind("binary")
+    set_languages("c11")
+    set_targetdir("build/pc")
+    add_includedirs(".", "port", "include")
+    add_files("port/port_rom_hash.c")
+    add_files("port/port_rom_profile.c")
+    add_files("port/port_rom_profile_test.c")
+target_end()
+
+-- Retail vs Angel SP4 glyph-prefix decoder: the SP4 stream renumbers the banks and
+-- makes 0x0F variable length, which is what this pins down.
+target("text_codec_test")
+    set_kind("binary")
+    set_languages("c11")
+    set_targetdir("build/pc")
+    add_includedirs("port")
+    add_files("port/port_text_codec.c")
+    add_files("port/port_text_codec_test.c")
+target_end()
