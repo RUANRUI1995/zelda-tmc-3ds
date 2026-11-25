@@ -90,12 +90,24 @@ jobs:
           # stable build of its own number.
           if [ "${{ steps.vars.outputs.channel }}" = "Release" ]; then DEBUG=0; CH=release; else DEBUG=1; CH=beta; fi
           echo "channel ${{ steps.vars.outputs.channel }}: TMC3DS_DEBUG_TOOLS=$DEBUG TMC3DS_CHANNEL=$CH"
-          TMC3DS_VERSION="${{ steps.vars.outputs.version }}" TMC3DS_DEBUG_TOOLS=$DEBUG TMC3DS_CHANNEL=$CH \
-            TMC3DS_JOBS=$(nproc) ./platform/3ds/build.sh
+          # Two baselines ship in one release. The USA package also plays
+          # European ROMs; the JP one carries its own asset baseline, its own
+          # title ID, and is the only one that reads a Japanese ROM or the
+          # Angel SP4 Chinese patch (the patch keeps the Japanese header).
+          # One build directory per baseline, so neither CMake cache is reused
+          # across regions.
+          for REGION in USA JP; do
+            echo "::group::${REGION} baseline"
+            TMC3DS_REGION="$REGION" TMC3DS_BUILD_DIR="build-3ds/${REGION}/game" \
+              TMC3DS_VERSION="${{ steps.vars.outputs.version }}" TMC3DS_DEBUG_TOOLS=$DEBUG TMC3DS_CHANNEL=$CH \
+              TMC3DS_JOBS=$(nproc) ./platform/3ds/build.sh
+            echo "::endgroup::"
+          done
           V="${{ steps.vars.outputs.version }}"
-          test -f "build-3ds/game/tmc-3ds-v${V}.cia"
+          test -f "build-3ds/USA/game/tmc-3ds-v${V}.cia"
+          test -f "build-3ds/JP/game/tmc-3ds-v${V}-jp.cia"
 
-      - name: Generate release notes and QR code
+      - name: Generate release notes and QR codes
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           TAG="${{ steps.vars.outputs.tag }}"
@@ -105,6 +117,15 @@ jobs:
           PRERELEASE="${{ steps.vars.outputs.prerelease }}"
 
           PREV=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' "HEAD^" 2>/dev/null || true)
+          if [ -z "$PREV" ] && [ -f platform/3ds/release_base.txt ]; then
+            # A fork carries no tags, so the tag above finds nothing and the
+            # changelog would become the whole history. Start it at the release
+            # this line descends from, which release_base.txt pins.
+            PIN=$(awk '$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ && $2 ~ /^[0-9a-f]+$/ { print $2; exit }' platform/3ds/release_base.txt)
+            if [ -n "$PIN" ] && git rev-parse --verify -q "${PIN}^{commit}" > /dev/null; then
+              PREV="$PIN"
+            fi
+          fi
           RANGE="${PREV:+${PREV}..}HEAD"
 
           if [ ! -f "docs/release-notes/${TAG}.md" ]; then
@@ -117,7 +138,9 @@ jobs:
               echo "> been merged into \`main\` yet, so it is not a stable version."
               echo
             fi
-            echo "![QR code for the ${TAG} CIA](${BASE}/QR-${TAG}.png)"
+            echo "| USA / European ROMs | Japanese ROM, Angel SP4 Chinese patch |"
+            echo "| --- | --- |"
+            echo "| ![QR code for tmc-3ds-v${V}.cia](${BASE}/QR-${TAG}.png) | ![QR code for tmc-3ds-v${V}-jp.cia](${BASE}/QR-${TAG}-jp.png) |"
             echo
             # The updater on the console shows this block (update_manifest.c,
             # Update_FormatNotes). Keep the markers identical.
@@ -133,10 +156,13 @@ jobs:
             fi
             echo "## Downloads"
             echo
-            echo "- [tmc-3ds-v${V}.cia](${BASE}/tmc-3ds-v${V}.cia) (install with FBI)"
+            echo "- [tmc-3ds-v${V}.cia](${BASE}/tmc-3ds-v${V}.cia) - USA and European ROMs (install with FBI)"
+            echo "- [tmc-3ds-v${V}-jp.cia](${BASE}/tmc-3ds-v${V}-jp.cia) - Japanese ROM and the Angel Team Chinese SP4 patch"
+            echo
+            echo "Both can be installed side by side: the JP package has its own title ID."
             echo
             echo "Based on [EstebanPdN/zelda-tmc-3ds](https://github.com/EstebanPdN/zelda-tmc-3ds) $(tr -d '\r\n' < platform/3ds/upstream_version.txt)."
-            echo "The ROM is not included: put your own USA or European ROM in"
+            echo "The ROM is not included: put your own USA, European or Japanese (or Chinese patched) ROM in"
             echo "\`sdmc:/3ds/Minish Cap 3DS/\`, see the README."
             echo
             echo "## Changelog"
@@ -146,10 +172,12 @@ jobs:
 
           apt-get update -qq && apt-get install -y -qq qrencode > /dev/null
           qrencode -s 10 -o "QR-${TAG}.png" "${BASE}/tmc-3ds-v${V}.cia"
+          qrencode -s 10 -o "QR-${TAG}-jp.png" "${BASE}/tmc-3ds-v${V}-jp.cia"
 
           # CIA only: the 3DSX does not get enough memory from the Homebrew
           # Launcher to run the game (owner, 2026-10-11).
-          cp "build-3ds/game/tmc-3ds-v${V}.cia" .
+          cp "build-3ds/USA/game/tmc-3ds-v${V}.cia" .
+          cp "build-3ds/JP/game/tmc-3ds-v${V}-jp.cia" .
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -170,7 +198,9 @@ jobs:
           body_path: release_notes.md
           files: |
             tmc-3ds-v${{ steps.vars.outputs.version }}.cia
+            tmc-3ds-v${{ steps.vars.outputs.version }}-jp.cia
             QR-${{ steps.vars.outputs.tag }}.png
+            QR-${{ steps.vars.outputs.tag }}-jp.png
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

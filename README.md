@@ -6,7 +6,7 @@ tools for testing and debugging.
 
 It installs as its own application, **Minish Cap 3DS**, and keeps its ROM and saves in
 `sdmc:/3ds/Minish Cap 3DS/`. Downloads are on this repository's
-[releases](https://github.com/tinaut1986/zelda-tmc-3ds/releases).
+[releases](https://github.com/RUANRUI1995/zelda-tmc-3ds/releases).
 
 No ROM or extracted Nintendo game assets are distributed with this project. You must provide
 your own legally obtained Game Boy Advance ROM.
@@ -76,8 +76,10 @@ width is the game's real map. How it is done: [docs/wide-scene-extension.md](doc
 
 ## Installation
 
-1. Install the CIA from the latest release with FBI (or scan the QR code in the release).
-   There is no 3DSX release: from the Homebrew Launcher the game does not get enough memory.
+1. Install the CIA that matches your ROM from the latest release with FBI (or scan its QR code):
+   `tmc-3ds-vX.Y.Z.cia` for a USA or European ROM, `tmc-3ds-vX.Y.Z-jp.cia` for a Japanese ROM or
+   the Chinese SP4 patch. See [ROMs and packages](#roms-and-packages). There is no 3DSX release:
+   from the Homebrew Launcher the game does not get enough memory.
 2. Create this folder on your SD card:
 
 ```text
@@ -115,7 +117,8 @@ Two packages build from this tree:
 | `Minish Cap 3DS` | USA (also plays Europe) | USA, Europe | `0x5A22E` |
 | `Minish Cap 3DS (JP)` | JP | clean Japan, Angel SP4 | `0x5A22F` |
 
-They install side by side, share the ROM and save folder, and each can only update itself. The
+They install side by side, share the ROM and save folder, and each can only update itself. Both
+are published with every release, and the updater only accepts the package of its own build. The
 JP package is built with `TMC3DS_REGION=JP`: CI produces it as the `tmc-3ds-packages-JP`
 artifact, and locally
 
