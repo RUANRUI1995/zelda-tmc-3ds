@@ -34,7 +34,9 @@ RELEASE_BASE="../release_base.txt"
 # file is absent or holds nothing usable.
 ReleaseBase() {
   [ -f "$RELEASE_BASE" ] || return 0
-  awk '$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ && $2 ~ /^[0-9a-f]+$/ { print $1, $2; exit }' "$RELEASE_BASE"
+  # The file is checked out with CRLF on some hosts; a stray \r would make the
+  # commit field fail its pattern and drop the pin silently.
+  awk '{ sub(/\r$/, "") } $1 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ && $2 ~ /^[0-9a-f]+$/ { print $1, $2; exit }' "$RELEASE_BASE"
 }
 
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
