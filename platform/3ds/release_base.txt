@@ -1,0 +1,15 @@
+# The release line this branch descends from: "<version> <commit>", where the
+# commit is the one its v<version> tag points at.
+#
+# tools/version.sh names a build after the newest release it is newer than, and
+# it reads that from the repository's tags. A fork's CI clones the fork, which
+# has none: pushing the upstream tags to a fork is not the way to fix that,
+# because a tag push runs build-release.yml as of that tag's commit and would
+# therefore publish every historical build - including releases older than the
+# compatibility work carried here. So this file records the same two facts a
+# tag would, and a tag-less clone still computes the same version a clone with
+# tags does.
+#
+# Tags win when a clone has them; this is the fallback. Update both fields when
+# this line is retagged, and keep them pointing at the newest release.
+0.4.7 52927925b1eff006733cd2857ac39a338cd19683

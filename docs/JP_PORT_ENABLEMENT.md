@@ -134,9 +134,16 @@ Two things differ from tinaut1986's tree so a build of this branch cannot be
 mistaken for, or replaced by, the English-only original:
 
 - `platform/3ds/tools/version.sh` describes a build off the last `v0.*` tag
-  (`0.4.7-dev.9+<hash>`) instead of falling through to `0.0.0-dev+<hash>`. The
+  (`0.4.7-dev.17+<hash>`) instead of falling through to `0.0.0-dev+<hash>`. The
   upstream port's `v2.x` tags are a different lineage and are deliberately
-  excluded from the match.
+  excluded from the match. Tags win when a clone has them.
+- `platform/3ds/release_base.txt` pins the release this branch descends from
+  (version and the commit its tag points at), because a fork's CI clones the
+  fork and the fork carries no tags. Pushing the upstream tags there is not the
+  fix: a tag push runs `build-release.yml` as of that tag's commit, so it would
+  publish every historical build, including a release older than this work.
+  With the pin, a tag-less clone computes the same string a tagged one does;
+  `build-3ds.yml` fails the run rather than upload a `0.0.0` package.
 - `UPDATE_REPOSITORY` in `platform/3ds/source/update_manifest.h` points at this
   fork. With no release published here, CHECK FOR UPDATE ends on the existing
   "NO RELEASE AVAILABLE" page rather than offering tinaut1986's build, which

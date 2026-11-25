@@ -65,6 +65,22 @@ jobs:
           command -v cmake > /dev/null || (apt-get update -qq && apt-get install -y -qq cmake > /dev/null)
           command -v python3 > /dev/null || (apt-get update -qq && apt-get install -y -qq python3 > /dev/null)
 
+      - name: Resolve the version
+        # A clone without tags used to fall through to 0.0.0-dev+<hash>, and the
+        # first sign of it was the package name on screen. Stop here instead: a
+        # build that cannot name the release it descends from is not worth an
+        # artifact, and the fix is one file away (platform/3ds/release_base.txt).
+        run: |
+          git config --global --add safe.directory '*'
+          VERSION="$(sh platform/3ds/tools/version.sh)"
+          echo "Resolved version: ${VERSION}"
+          case "${VERSION}" in
+            0.0.0*)
+              echo "::error::version.sh fell back to ${VERSION}: this clone has no v*.*.* tags and platform/3ds/release_base.txt is missing or unreadable."
+              exit 1
+              ;;
+          esac
+
       - name: Build CIA and 3DSX
         # A failed run otherwise only says "step failed" and leaves the reason in
         # a log that has to be downloaded by hand. Keep the full log, and on

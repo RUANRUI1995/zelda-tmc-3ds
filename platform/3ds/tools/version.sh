@@ -5,7 +5,12 @@
 #   - on (or branched off) release/vX.Y.Z:
 #                                    X.Y.Z-dev.<commits since main>[.<commits since
 #                                    the release branch>]+<hash>
-#   - anything else:                 0.0.0-dev+<hash>
+#   - anything else:                  <base>-dev.<commits since base>+<hash>,
+#                                    where <base> is the newest tag this tree
+#                                    is newer than, or - in a clone that has no
+#                                    tags at all - the release pinned in
+#                                    ../release_base.txt
+#   - neither tags nor a pin:         0.0.0-dev+<hash>
 #
 # Only three-component tags count. The upstream port (EstebanPdN) tags with two
 # components (v2.1, v2.2-E1); those tags live in this repository too and must
@@ -23,6 +28,14 @@ fi
 
 cd "$(dirname "$0")"
 OUR_TAGS='v[0-9]*.[0-9]*.[0-9]*'
+RELEASE_BASE="../release_base.txt"
+
+# "<version> <commit>" from release_base.txt, first data line; empty if the
+# file is absent or holds nothing usable.
+ReleaseBase() {
+  [ -f "$RELEASE_BASE" ] || return 0
+  awk '$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ && $2 ~ /^[0-9a-f]+$/ { print $1, $2; exit }' "$RELEASE_BASE"
+}
 
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   echo "0.0.0-dev"
@@ -61,12 +74,30 @@ case "$REL" in
     # describe from the newest tag of this fork's own line instead of giving up.
     # v0.* only: the upstream port's v2.x tags live in this repository too and
     # are a different version lineage, never this build's ancestor.
-    # main then reads 0.4.7-dev.7+<hash>, which keeps the updater's ordering
+    # main then reads 0.4.7-dev.17+<hash>, which keeps the updater's ordering
     # meaningful and the package name readable.
+    BASE=""
+    BASE_REV=""
     BASE_TAG=$(git describe --tags --abbrev=0 --match 'v0.[0-9]*.[0-9]*' 2>/dev/null || true)
     if [ -n "$BASE_TAG" ] && is_ours "$BASE_TAG"; then
-      AHEAD=$(git rev-list --count "${BASE_TAG}..HEAD" 2>/dev/null || echo 0)
-      echo "${BASE_TAG#v}-dev.${AHEAD}+$HASH"
+      BASE=${BASE_TAG#v}
+      BASE_REV=$(git rev-parse --verify -q "${BASE_TAG}^{commit}" || true)
+    else
+      # No tag at all, which is what a fork's CI sees: tags are not pushed to a
+      # fork, because a tag push runs build-release.yml as of that tag's commit
+      # and would publish every historical build. release_base.txt pins the same
+      # two facts a tag carries, so the count below still matches a clone that
+      # does have the tags.
+      set -- $(ReleaseBase)
+      BASE=${1:-}
+      BASE_REV=${2:-}
+    fi
+    if [ -n "$BASE" ] && [ -n "$BASE_REV" ] &&
+       git rev-parse --verify -q "${BASE_REV}^{commit}" >/dev/null 2>&1; then
+      AHEAD=$(git rev-list --count "${BASE_REV}..HEAD" 2>/dev/null || echo 0)
+      echo "${BASE}-dev.${AHEAD}+$HASH"
+    elif [ -n "$BASE" ]; then
+      echo "${BASE}-dev+$HASH"
     else
       echo "0.0.0-dev+$HASH"
     fi
