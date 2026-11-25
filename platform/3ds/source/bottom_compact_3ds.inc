@@ -685,6 +685,9 @@ static void Compact_PaintOptions(const SSurf* s, TargetList* tl) {
         CCell(t, tl, x, y, w, CCellHeight(), "TABS", sCcTabsBottom ? "BOTTOM" : "TOP", CC_TEXT, SS_ACT_TABS, 0);
     }
     CSettingCellAt(t, tl, y, 2, 1, "SHOW FPS", SS_SET_SHOW_FPS);
+    /* The fourth column of this row was the free one: the language the port's
+     * own screens are drawn in, named by itself. */
+    CSettingCellAt(t, tl, y, 3, 1, "LANGUAGE", SS_SET_UI_LANGUAGE);
     y += OPT_ROW_H;
 
     COptTitle(t, y, "SYSTEM");

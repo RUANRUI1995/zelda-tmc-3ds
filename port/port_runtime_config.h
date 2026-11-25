@@ -295,6 +295,11 @@ void Port_Config_CycleGbaFrame(void);
 int Port_Config_GetNeighbourRooms(void);
 const char* Port_Config_GetNeighbourRoomsName(void);
 void Port_Config_CycleNeighbourRooms(void);
+/* LANGUAGE (ui_language, 3DS): the language the port's own screens are drawn in. -1 = automatic
+ * (the game's language, or Chinese for an Angel SP4 ROM), 0..PORT_TEXT_COUNT-1 = the player's pick
+ * (port_text_i18n.h). The cycle both applies the next language and stores it. */
+int Port_Config_GetUiLanguage(void);
+void Port_Config_CycleUiLanguage(void);
 /* 3D WORLD (stereo_world_on): the depth the world has while playing with the 3D slider up (docs/stereo-3d.md): 0 OFF, 1 ON. */
 int Port_Config_GetStereoWorld(void);
 /* Asked once at the start: the world's depth shows graphic errors in some scenes (the game was drawn for flat 2D); the answer

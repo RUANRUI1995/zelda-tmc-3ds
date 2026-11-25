@@ -11,7 +11,8 @@ can be embedded.
           https://github.com/TakWolf/ark-pixel-font/releases
   charset the ASCII range plus every non-ASCII character the Chinese column
           of port/port_text_i18n.c uses, so the table holds only what the
-          UI can actually draw
+          UI can actually draw, plus the few strings the UI draws that are
+          not table keys (EXTRA_DRAWN below)
   output  a sorted (code point, advance, 12x12 1bpp rows) table
 
 Every glyph is placed in one 12-row cell on a shared baseline, so a line of
@@ -31,6 +32,12 @@ CELL_H = 12
 # rows 0..10 and a 9-row capital at rows 1..9: the proportions the font was
 # drawn for.
 BASELINE_ROW = 10
+
+# Text the bottom screen draws that is not a translation-table key: the
+# OPTIONS -> LANGUAGE cell names each language in its own words
+# (Port_Text_LanguageName in port_text_i18n.c). Only the Chinese name needs
+# glyphs from this font - the others are Latin, and the 5x7 face draws them.
+EXTRA_DRAWN = "\u4e2d\u6587"
 
 
 def parse_bdf(path):
@@ -63,6 +70,7 @@ def charset(i18n_path):
         strs = re.findall(r'"((?:[^"\\]|\\.)*)"', block)
         if len(strs) >= 6:
             chars |= {ch for ch in strs[5] if ord(ch) > 0x7F}
+    chars |= set(EXTRA_DRAWN)
     return chars
 
 

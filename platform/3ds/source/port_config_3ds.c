@@ -1,5 +1,6 @@
 #include "port_runtime_config.h"
 #include "platform_3ds.h"
+#include "port_text_i18n.h"
 #include "config_values_3ds.h"
 #include "stereo_3ds.h"
 
@@ -36,6 +37,9 @@ static _Atomic bool sColorCorrection;
 static _Atomic int sGbaGrid; /* 0 OFF .. 3 HIGH */
 static _Atomic int sGbaFrame; /* 0 NO, 1 GBA, 2 BLUR */
 static _Atomic int sNeighbourRooms = 1; /* the rooms beside a small one in Full View: 0 NO, 1 YES */
+/* OPTIONS -> LANGUAGE: the language the port's own screens are drawn in. PORT_TEXT_AUTO (-1)
+ * follows the game and the ROM profile, which is what a fresh install does. */
+static _Atomic int sUiLanguage = PORT_TEXT_AUTO;
 static _Atomic bool sAutosave;
 static bool sConsoleParity;
 static _Atomic Port3DSAspectRatio sAspectRatio = CONFIG_3DS_DEFAULT_ASPECT;
@@ -201,6 +205,7 @@ static size_t FormatConfig(char* out, size_t cap) {
     APPEND("gba_grid=%d\n", (int)sGbaGrid);
     APPEND("gba_frame=%d\n", (int)sGbaFrame);
     APPEND("neighbour_rooms=%d\n", (int)sNeighbourRooms);
+    APPEND("ui_language=%d\n", (int)sUiLanguage);
     APPEND("autosave=%u\n", sAutosave ? 1u : 0u);
     APPEND("widescreen=%u\n", sAspectRatio == PORT_3DS_ASPECT_WIDE ? 1u : 0u);
     APPEND("screen_aspect=%s\n", ConfigValues3DS_AspectName(sAspectRatio));
@@ -443,6 +448,11 @@ void Port_Config_Load(const char* path) {
             else if (strcmp(key, "neighbour_rooms") == 0) {
                 sNeighbourRooms = atoi(value) != 0 || ParseBool(value);
             }
+            else if (strcmp(key, "ui_language") == 0) {
+                /* -1 (or anything out of range, a hand-edited file) is AUTO. */
+                const int lang = atoi(value);
+                sUiLanguage = lang >= 0 && lang < PORT_TEXT_COUNT ? lang : PORT_TEXT_AUTO;
+            }
             else if (strcmp(key, "wide_ai") == 0) sWideAi = ParseBool(value);
             else if (strcmp(key, "wide_ai_asked") == 0) sWideAiAsked = ParseBool(value);
             else if (strcmp(key, "auto_update") == 0) sAutoUpdate = ParseBool(value);
@@ -487,6 +497,9 @@ void Port_Config_Load(const char* path) {
     if (sBackdrop < 0 || sBackdrop > 6) sBackdrop = 0;
     if (sTurboMultiplier < 2 || sTurboMultiplier > 5) sTurboMultiplier = 5;
     Platform3DS_SetTurboMultiplier(sTurboMultiplier);
+    /* Before the first bottom-screen paint, so the saved language is the one it
+     * draws in. AUTO is a no-op: the ROM profile decides once it is known. */
+    Port_Text_SetUiLanguage(sUiLanguage);
     sConfigLoaded = true;
     if (migratePerformanceProfile) SaveConfig();
 }
@@ -927,6 +940,20 @@ const char* Port_Config_GetNeighbourRoomsName(void) {
 }
 void Port_Config_CycleNeighbourRooms(void) {
     sNeighbourRooms = !sNeighbourRooms;
+    SaveConfig();
+}
+
+int Port_Config_GetUiLanguage(void) {
+    return sUiLanguage;
+}
+
+/* The cell names the language in effect, so what it steps to comes from there:
+ * the resolved language, not the stored AUTO, which has no next value. A fresh
+ * install on a Chinese ROM therefore starts at Chinese and opens on English. */
+void Port_Config_CycleUiLanguage(void) {
+    const int next = ((int)Port_Text_GetLanguage() + 1) % (int)PORT_TEXT_COUNT;
+    sUiLanguage = next;
+    Port_Text_SetUiLanguage(next);
     SaveConfig();
 }
 bool Port_Config_3DSFullViewComboEnabled(void) {

@@ -222,6 +222,7 @@ enum {
     SS_SET_GBA_FRAME,     /* gba_frame: the console's body around a 240x160 / 360x240 picture */
     SS_SET_NEIGHBOURS,    /* neighbour_rooms: OFF / ON */
     SS_SET_STEREO_WORLD,  /* stereo_world_on: OFF / ON (the world's depth while playing, 3D slider up) */
+    SS_SET_UI_LANGUAGE,   /* ui_language: the port's own screens, cycled through port_text_i18n.h */
 #endif
     SS_SET_COUNT
 };
@@ -2694,6 +2695,11 @@ static int GetSettingState(int row, char* out, int outCap) {
         case SS_SET_STEREO_WORLD:
             snprintf(out, (size_t)outCap, "%s", Port_Text_Tr(Port_Config_GetStereoWorldName()));
             return Port_Config_GetStereoWorld() != 0;
+        case SS_SET_UI_LANGUAGE:
+            /* The language in its own words ("ENGLISH", "FRANÇAIS", "中文"). Not a
+             * translation key: it names itself, in the face that draws it. */
+            snprintf(out, (size_t)outCap, "%s", Port_Text_LanguageName(Port_Text_GetLanguage()));
+            return 1;
         case SS_SET_FRAMES: {
             static const char* const kPacing[PORT_3DS_PACING_COUNT] = { "AUTO", "LOCK 30", "NO SKIP" };
             int pacing = Port_Config_GetFramePacing();
@@ -4197,6 +4203,9 @@ static void DispatchTap(int x, int y, int longPress) {
                     break;
                 case SS_SET_NEIGHBOURS:
                     Port_Config_CycleNeighbourRooms();
+                    break;
+                case SS_SET_UI_LANGUAGE:
+                    Port_Config_CycleUiLanguage();
                     break;
                 case SS_SET_STEREO_WORLD:
                     Port_Config_CycleStereoWorld();

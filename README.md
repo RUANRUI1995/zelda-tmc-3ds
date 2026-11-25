@@ -40,7 +40,9 @@ The game is the open-source decompilation of the original, running on a native e
 * X and Y fire items, shown as the console's A/B/X/Y diamond in the HUD and on the bottom
   screen.
 * Bottom screen with live map, dungeon information, quest status, item touch controls, themes
-  and settings; its own text follows the language chosen in-game (EN/FR/DE/ES/IT).
+  and settings; its own text follows the language chosen in-game (EN/FR/DE/ES/IT), turns Chinese
+  on the Angel SP4 patch, and can be picked by hand in **OPTIONS > LANGUAGE**
+  (EN/FR/DE/ES/IT/中文, drawn with a built-in 12x12 pixel font).
 * **Save states** (STATES tab), independent of the build.
 * **RetroAchievements** (trophy tab, softcore): see
   [docs/retroachievements.md](docs/retroachievements.md).

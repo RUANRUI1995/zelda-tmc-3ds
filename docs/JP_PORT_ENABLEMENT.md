@@ -107,6 +107,27 @@ The retail JP gaps listed above are unchanged by this: a clean JP ROM still uses
 `PORT_TEXT_CODEC_RETAIL` and the 9/5 bank geometry, so its menus need the same
 audit as before.
 
+### The port's own UI language
+
+Only the bottom screen's text belongs to the port; the game's dialogue and menus
+are drawn by the ROM itself. Its table is `port/port_text_i18n.c` — one column per
+language — and `port/port_text_i18n.h` decides which column is read:
+
+- the language picked in the game's file-select screen,
+- Chinese when the loaded ROM is the Angel SP4 patch (it reports Japanese, so the
+  language above cannot tell it apart from a clean JP ROM),
+- or whatever `OPTIONS > LANGUAGE` holds (`ui_language` in `tmc3ds.ini`), which
+  wins over both; `-1` means "follow" again. The cell steps from the language in
+  effect, so a Chinese ROM opens on English.
+
+The Chinese column is drawn with a 12x12 face generated from Ark Pixel 12px
+(SIL OFL 1.1) into `platform/3ds/source/ui_cjk_font.inc` — only the characters the
+column uses, about 436 glyphs, plus `EXTRA_DRAWN` for strings the UI draws that are
+not table keys (the language names). Re-run
+`platform/3ds/tools/gen_cjk_font.py` after adding UI strings. A Chinese cell label
+holds five full-width glyphs (68 px, the content width of a quarter-width cell); the
+i18n unit test enforces that.
+
 ## Version and updater on this fork
 
 Two things differ from tinaut1986's tree so a build of this branch cannot be
