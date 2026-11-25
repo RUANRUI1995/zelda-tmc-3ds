@@ -58,6 +58,33 @@ message(STATUS "Minish Cap 3DS v${TMC_3DS_VERSION_LABEL} (upstream ${TMC_3DS_UPS
 
 set(TMC_ROOT "${CMAKE_CURRENT_LIST_DIR}/../..")
 
+# Compile-time baseline. The engine is built against one region's generated
+# asset offsets and `#ifdef <REGION>` choices; a MULTI_REGION binary still picks
+# offsets at runtime, but the asset baseline and the unconverted preprocessor
+# sites stay those of the build. USA is the historical default; JP is a separate
+# package because it carries its own baseline, and the Angel SP4 Chinese patch
+# runs on top of it.
+set(TMC_3DS_REGION "USA" CACHE STRING "Compile-time asset baseline: USA, EU, or JP")
+set_property(CACHE TMC_3DS_REGION PROPERTY STRINGS USA EU JP)
+string(TOUPPER "${TMC_3DS_REGION}" TMC_3DS_REGION)
+if(TMC_3DS_REGION STREQUAL "USA")
+    set(TMC_3DS_LANGUAGE "ENGLISH")
+elseif(TMC_3DS_REGION STREQUAL "EU")
+    set(TMC_3DS_LANGUAGE "ENGLISH")
+elseif(TMC_3DS_REGION STREQUAL "JP")
+    set(TMC_3DS_LANGUAGE "JAPANESE")
+else()
+    message(FATAL_ERROR "TMC_3DS_REGION must be USA, EU, or JP (got '${TMC_3DS_REGION}')")
+endif()
+
+set(TMC_3DS_ASSET_BASELINE "${TMC_ROOT}/build/${TMC_3DS_REGION}")
+if(NOT EXISTS "${TMC_3DS_ASSET_BASELINE}/assets/map_offsets.h" OR
+   NOT EXISTS "${TMC_3DS_ASSET_BASELINE}/assets/gfx_offsets.h")
+    message(FATAL_ERROR
+        "Missing ${TMC_3DS_REGION} asset offset headers under ${TMC_3DS_ASSET_BASELINE}/assets. "
+        "Generate them from a legal ${TMC_3DS_REGION} baserom before configuring the 3DS build.")
+endif()
+
 file(GLOB TMC_ACTOR_SOURCES CONFIGURE_DEPENDS
     "${TMC_ROOT}/src/playerItem/*.c"
     "${TMC_ROOT}/src/enemy/*.c"
@@ -195,12 +222,12 @@ add_executable(tmc-3ds
 target_include_directories(tmc-3ds PRIVATE
     "${TMC_ROOT}" "${TMC_ROOT}/include" "${TMC_ROOT}/port"
     "${TMC_ROOT}/port/ppu/include" "${TMC_ROOT}/libs/agbplay_core"
-    "${TMC_ROOT}/build/USA" "${CMAKE_CURRENT_LIST_DIR}/source"
+    "${TMC_3DS_ASSET_BASELINE}" "${CMAKE_CURRENT_LIST_DIR}/source"
     "${TMC_3DS_GENERATED}"
 )
 
 target_compile_definitions(tmc-3ds PRIVATE
-    PC_PORT NON_MATCHING USE_HDMA TMC_3DS MULTI_REGION USA ENGLISH REVISION=0
+    PC_PORT NON_MATCHING USE_HDMA TMC_3DS MULTI_REGION ${TMC_3DS_REGION} ${TMC_3DS_LANGUAGE} REVISION=0
     MODE1_GBA_WIDTH=400 MODE1_GBA_HEIGHT=240 PPU_GPU3DS_PROFILE
 )
 target_compile_features(tmc-3ds PRIVATE c_std_11 cxx_std_20)

@@ -3,6 +3,11 @@ name: Build 3DS
 # Compile check for pull requests and the release line; publishes nothing (the
 # packages are kept as workflow artifacts). Releases come from
 # build-release.yml on a vX.Y.Z tag.
+#
+# Two baselines are built: USA (the historical package, which also plays Europe
+# ROMs) and JP (its own package with a separate title ID; it plays the clean
+# Japanese ROM and the Angel Team Chinese SP4 patch). A JP build carries its own
+# asset baseline and data layout, so it cannot be folded into the USA binary.
 
 on:
   push:
@@ -17,10 +22,17 @@ permissions:
 
 jobs:
   build:
-    name: Nintendo 3DS packages (debug tools)
+    name: 3DS packages (${{ matrix.region }} baseline, debug tools)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        region: [USA, JP]
     container:
       image: devkitpro/devkitarm:20260610
+
+    env:
+      TMC3DS_REGION: ${{ matrix.region }}
 
     steps:
       - name: Checkout source
@@ -43,15 +55,19 @@ jobs:
         run: |
           git config --global --add safe.directory '*'
           VERSION="$(sh platform/3ds/tools/version.sh)"
+          case "${TMC3DS_REGION}" in
+            USA) PKG_SUFFIX="" ;;
+            *)   PKG_SUFFIX="-$(printf '%s' "${TMC3DS_REGION}" | tr '[:upper:]' '[:lower:]')" ;;
+          esac
           test ! -f baserom.gba
           ! git ls-files | grep -Ei '(^|/)([^/]*\.gba|[^/]*\.sav|[^/]*\.ppu1|tmc3ds\.log|bugreport_.*)(/|$)'
           test -f "build-3ds/game/tmc-3ds-v${VERSION}.3dsx"
-          test -f "build-3ds/game/tmc-3ds-v${VERSION}.cia"
+          test -f "build-3ds/game/tmc-3ds-v${VERSION}${PKG_SUFFIX}.cia"
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: tmc-3ds-packages
+          name: tmc-3ds-packages-${{ matrix.region }}
           if-no-files-found: error
           path: |
             build-3ds/game/tmc-3ds-v*.3dsx

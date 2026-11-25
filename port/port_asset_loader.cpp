@@ -10,7 +10,8 @@ extern "C" {
 #include "port_gba_mem.h"
 #include "port_rom.h"
 #include "port_config.h" /* gRomRegion / ROM_REGION_JP for the JP gfx-group gate */
-#include "region.h"      /* RegionAssetSubdir() — per-region cache folder */
+#include "port_rom_profile.h" /* Port_GetAssetCacheSubdir() — per-profile cache folder */
+#include "region.h"
 #include "port_asset_index.h"
 #include "structures.h"
 #include "area.h"
@@ -244,13 +245,13 @@ static std::vector<std::filesystem::path> AssetSearchRoots() {
 }
 
 /* The asset cache is keyed per-region: assets/<region>/ and assets_src/<region>/.
- * gActiveRegion is set at ROM load, so RegionAssetSubdir() is valid here. For USA
+ * gActiveRegion is set at ROM load, so Port_GetAssetCacheSubdir() is valid here. For USA
  * we also accept the legacy FLAT assets/ tree (older installs predating per-region
  * folders) so they aren't forced to re-extract. The flat fallback is USA-only on
  * purpose: a JP/EU run must never silently pick up a flat USA tree — that is the
  * exact cross-region corruption this scheme exists to prevent. */
 static bool RegionAllowsLegacyFlat() {
-    return std::string(RegionAssetSubdir()) == "usa";
+    return std::string(Port_GetAssetCacheSubdir()) == "usa";
 }
 
 /* Shared search for an asset tree: probe <root>/<subdir>/<region> for
@@ -258,7 +259,7 @@ static bool RegionAllowsLegacyFlat() {
  * <root>/<subdir>. Editable trees live under "assets_src" and require
  * palettes.json too; runtime trees live under "assets". */
 std::optional<std::filesystem::path> FindAssetsRoot(const char* subdir, std::initializer_list<const char*> manifests) {
-    const char* sub = RegionAssetSubdir();
+    const char* sub = Port_GetAssetCacheSubdir();
     const auto hasManifests = [&](const std::filesystem::path& dir) {
         for (const char* m : manifests) {
             if (!std::filesystem::exists(dir / m)) {
@@ -1216,7 +1217,7 @@ extern "C" void Port_DumpAssetEnvironment(FILE* out, const char* kind, unsigned 
                  : gRomRegion == ROM_REGION_JP  ? "JP"
                  : gRomRegion == ROM_REGION_USA ? "USA"
                                                 : "UNKNOWN",
-                 RegionAssetSubdir());
+                 Port_GetAssetCacheSubdir());
 
     std::error_code ec;
     const auto cwd = std::filesystem::current_path(ec);
@@ -1376,15 +1377,16 @@ GfxLoadDecision EvaluateGfxControl(u8 unknown) {
 extern "C" u16 gPaletteBuffer[];
 
 extern "C" bool32 Port_LoadPaletteGroupFromAssets(u32 group) {
-    /* EU: never serve palette GROUPS from the extracted cache. The EU palette
-     * area drops two entries (gPalette_2432/2433) relative to USA, so the
-     * extractor's per-NAME file offsets sit +0x10/-0x40 off the id*32
-     * arithmetic the game's group table actually uses — group loads for
-     * palette ids >= ~2434 come out half-a-palette shifted (magenta/green
-     * garbled EU title BG, M6 bug). The loaded ROM resolves groups exactly
-     * (gGlobalGfxAndPalettes[paletteId * 32]); let LoadPaletteGroup fall
-     * through to it. Same shape as the JP gfx-group gate below. */
-    if (gRomRegion == ROM_REGION_EU) {
+    /* Never serve palette GROUPS from the extracted cache for a non-USA ROM.
+     * The cache is built from the USA palette layout: the EU area drops two
+     * entries (gPalette_2432/2433), so the extractor's per-NAME file offsets
+     * sit +0x10/-0x40 off the id*32 arithmetic the game's group table actually
+     * uses - group loads for palette ids >= ~2434 come out half-a-palette
+     * shifted (magenta/green garbled EU title BG, M6 bug). JP, including the
+     * Angel SP4 patch, diverges the same way. The loaded ROM resolves groups
+     * exactly (gGlobalGfxAndPalettes[paletteId * 32]); let LoadPaletteGroup
+     * fall through to it. */
+    if (gRomRegion != ROM_REGION_USA) {
         return FALSE;
     }
     if (!EnsureAssetGroupCache()) {
