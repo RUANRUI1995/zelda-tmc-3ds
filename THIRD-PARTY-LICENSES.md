@@ -39,6 +39,15 @@ reproduced/redistributed here under their respective licenses.
 | libpng | http://www.libpng.org/pub/png/libpng.html | libpng (PNG Reference Library) |
 | rcheevos (`third_party/rcheevos`, 3DS RetroAchievements) | https://github.com/RetroAchievements/rcheevos | MIT |
 | stb_image (`third_party/stb`, RetroAchievements badges) | https://github.com/nothings/stb | MIT or Public Domain |
+| Ark Pixel Font 12px (`platform/3ds/source/ui_cjk_font.inc`, the Chinese bottom screen) | https://github.com/TakWolf/ark-pixel-font | SIL Open Font License 1.1 |
+
+The Ark Pixel 12px glyphs are **embedded** in the build: `platform/3ds/tools/gen_cjk_font.py`
+takes the character set the Chinese UI uses out of the font's BDF and writes it to
+`ui_cjk_font.inc`. The OFL permits embedding and redistribution, and it does not
+extend to this project's own code, which stays GPL-3.0. Copyright (c) 2021 TakWolf;
+the font's license text is reproduced at
+https://github.com/TakWolf/ark-pixel-font/blob/master/LICENSE-OFL. Regenerate the
+table from a downloaded BDF with `gen_cjk_font.py --bdf <file>`.
 
 ## Build-time decompilation toolchain (`tools/src/`)
 

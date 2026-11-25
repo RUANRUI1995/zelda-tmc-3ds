@@ -19,6 +19,7 @@
 #include "app_paths_3ds.h"
 #include "port_rom_hash.h"
 #include "port_rom_profile.h"
+#include "port_text_i18n.h"
 #include "upstream_import_3ds.h"
 #include "boot_text_3ds.h"
 #include "tmc3ds_build_config.h"
@@ -195,6 +196,9 @@ static int RomIsSupported(const char* path, const struct stat* info) {
     }
     sSelectedRomProfile = profile;
     sSelectedRomHashes = hashes;
+    /* A Chinese ROM (Angel SP4) reports Japanese and would otherwise leave the
+     * port's own bottom screen in English; follow its translation instead. */
+    Port_Text_SetChineseUi(profile->variant == PORT_ROM_VARIANT_JP_ANGEL_SP4);
     return 1;
 }
 

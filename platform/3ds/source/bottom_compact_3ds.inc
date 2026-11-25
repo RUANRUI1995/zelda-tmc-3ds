@@ -119,10 +119,56 @@ int Port_SecondScreen_3DS_UiTabCenterY(int height) {
 
 /* Every string goes through Port_Text_Tr (the player's in-game language;
  * unknown text passes through) and is read as UTF-8: the font covers Latin-1
- * and draws an accent as a separate mark above the plain letter. */
-static int32_t CText(const SSurf* s, int32_t x, int32_t y, uint32_t color, const char* str) {
+ * and draws an accent as a separate mark above the plain letter.
+ *
+ * The Chinese column switches the whole bottom screen to the 12x12 CJK face
+ * (ui_font_3ds.h): taller and wider, so anything that centres text or stacks
+ * lines asks CTextHeight/CLineHeight instead of kUiGlyphH and 10. */
+static int32_t CTextHeight(void) {
+    return Port_Text_GetLanguage() == PORT_TEXT_ZH ? UI_CJK_CELL_H : kUiGlyphH;
+}
+
+static int32_t CLineHeight(void) {
+    return Port_Text_GetLanguage() == PORT_TEXT_ZH ? UI_CJK_CELL_H + 2 : 10;
+}
+
+/* One line in the CJK face. Rows arrive as 2 bytes per row, bit 15 leftmost.
+ * Stops before the pen would pass maxWidth (0 = no limit), which is how the
+ * wrappers below cut a line without copying it first. */
+static int32_t CTextCjkLimit(const SSurf* s, int32_t x, int32_t y, uint32_t color, const char* str,
+                             int32_t maxWidth) {
     int32_t cx = x;
-    for (const char* p = Port_Text_Tr(str); *p;) {
+    for (const char* p = str; *p;) {
+        int advance = 0;
+        const uint8_t* rows = UiFont_CjkGlyph(Port_Text_Utf8CodePoint(&p), &advance);
+        if (maxWidth > 0 && cx - x + advance > maxWidth) break;
+        if (rows) {
+            for (int32_t gy = 0; gy < UI_CJK_CELL_H; gy++) {
+                const uint32_t bits = ((uint32_t)rows[gy * 2] << 8) | rows[gy * 2 + 1];
+                if (bits == 0) continue;
+                for (int32_t gx = 0; gx < UI_CJK_CELL_W; gx++) {
+                    if (bits & (0x8000u >> gx)) {
+                        FillRect(s, cx + gx, y + gy, cx + gx + 1, y + gy + 1, color);
+                    }
+                }
+            }
+        }
+        cx += advance;
+    }
+    return cx - x;
+}
+
+static int32_t CTextCjk(const SSurf* s, int32_t x, int32_t y, uint32_t color, const char* str) {
+    return CTextCjkLimit(s, x, y, color, str, 0);
+}
+
+static int32_t CText(const SSurf* s, int32_t x, int32_t y, uint32_t color, const char* str) {
+    const char* tr = Port_Text_Tr(str);
+    if (Port_Text_GetLanguage() == PORT_TEXT_ZH) {
+        return CTextCjk(s, x, y, color, tr);
+    }
+    int32_t cx = x;
+    for (const char* p = tr; *p;) {
         const unsigned char c = Port_Text_Utf8Next(&p);
         const uint8_t* g = UiFont_Glyph(c);
         if (g) {
@@ -151,8 +197,13 @@ static int32_t CText(const SSurf* s, int32_t x, int32_t y, uint32_t color, const
 }
 
 static int32_t CTextWidth(const char* str) {
+    const char* tr = Port_Text_Tr(str);
+    if (Port_Text_GetLanguage() == PORT_TEXT_ZH) {
+        const int32_t w = UiFont_CjkTextWidth(tr);
+        return w > 0 ? w - 1 : 0;
+    }
     int32_t n = 0;
-    for (const char* p = Port_Text_Tr(str); *p; n++) {
+    for (const char* p = tr; *p; n++) {
         (void)Port_Text_Utf8Next(&p);
     }
     return n > 0 ? n * kUiAdvance - 1 : 0;
@@ -256,7 +307,7 @@ static void CCell(const SSurf* s, TargetList* tl, int32_t x, int32_t y, int32_t 
 static void CButton(const SSurf* s, TargetList* tl, int32_t x, int32_t y, int32_t w, int32_t h, const char* label,
                     uint32_t textColor, uint8_t action, uint8_t arg) {
     CBox(s, x, y, w, h, CC_BTN, CC_BTN_EDGE);
-    CTextCentered(s, x + w / 2, y + (h - kUiGlyphH) / 2, textColor, label);
+    CTextCentered(s, x + w / 2, y + (h - CTextHeight()) / 2, textColor, label);
     AddTarget(tl, (float)x, (float)y, (float)(x + w), (float)(y + h), action, arg);
 }
 
@@ -716,12 +767,12 @@ static void Compact_PaintToast(const SSurf* s) {
     int32_t w = CTextWidth(notice ? "RECEIVING NEW BUILD 100%" : sToast), tw = CTextWidth(sToast);
     if (!notice || tw > w) w = tw;
     w += 2 * 8;
-    int32_t h = kUiGlyphH + 2 * 8 + barGap + barH;
+    int32_t h = CTextHeight() + 2 * 8 + barGap + barH;
     int32_t x = (s->w - w) / 2, y = CcContentBottom(s->h) - h - 4;
     CWindow(s, x, y, w, h, CC_BAR, CC_BAR_DIM);
     CTextCentered(s, s->w / 2, y + 8, CC_BAR_TEXT, sToast);
     if (barH) {
-        const int32_t bx = x + 8, by = y + 8 + kUiGlyphH + barGap, bw = w - 2 * 8;
+        const int32_t bx = x + 8, by = y + 8 + CTextHeight() + barGap, bw = w - 2 * 8;
         FillRect(s, bx, by, bx + bw, by + barH, CC_BAR_FAINT);
         FillRect(s, bx, by, bx + (int32_t)((int64_t)bw * permille / 1000), by + barH, CC_ACCENT);
     }
@@ -1109,9 +1160,9 @@ static void Compact_StatesCommand(int cmd) {
 static void Compact_PaintNoGame(const SSurf* s) {
     const int32_t top = CcContentTop(), bottom = CcContentBottom(s->h);
     FillRect(s, 0, top, s->w, bottom, CC_BG);
-    const int32_t y = (top + bottom) / 2 - kUiGlyphH;
+    const int32_t y = (top + bottom) / 2 - CTextHeight();
     CTextCentered(s, s->w / 2, y, CC_TEXT, "AVAILABLE ONCE A GAME IS LOADED");
-    CTextCentered(s, s->w / 2, y + kUiGlyphH + 6, CC_DIM, "OPTIONS AND DEBUG WORK NOW");
+    CTextCentered(s, s->w / 2, y + CTextHeight() + 6, CC_DIM, "OPTIONS AND DEBUG WORK NOW");
 }
 
 /* ---- DEBUG (debug-tools builds) ---- */
@@ -1395,11 +1446,15 @@ static void Compact_PaintModal(const SSurf* s, TargetList* tl, const char* title
                                uint8_t rightAction) {
     tl->n = 0;
     for (int32_t y = 0; y < s->h; y += 2) FillRect(s, 0, y, s->w, y + 1, CC_BG);
-    const int32_t w = 260, h = 30 + nLines * 10 + 36;
+    /* The Chinese face is taller, so the body grows with its line height; the
+     * title band and the button row are the same either way. */
+    const int32_t lineH = CLineHeight();
+    const int32_t titleBand = 24 - 10 + lineH;
+    const int32_t w = 260, h = 30 + nLines * lineH + 36;
     const int32_t x = (s->w - w) / 2, y = (s->h - h) / 2;
     CWindow(s, x, y, w, h, CC_CELL, CC_CELL_EDGE);
     CTextCentered(s, s->w / 2, y + 9, CC_ACCENT, title);
-    for (int i = 0; i < nLines; ++i) CTextCentered(s, s->w / 2, y + 24 + i * 10, CC_TEXT, lines[i]);
+    for (int i = 0; i < nLines; ++i) CTextCentered(s, s->w / 2, y + titleBand + i * lineH, CC_TEXT, lines[i]);
     const int32_t by = y + h - 28, bw = right ? (w - 12 - CC_GAP) / 2 : w - 8;
     CButton(s, tl, x + 4, by, bw, 24, left, CC_TEXT, leftAction, 0);
     if (right) CButton(s, tl, x + 8 + bw + CC_GAP - 4, by, bw, 24, right, CC_WARN, rightAction, 0);
@@ -1414,7 +1469,7 @@ static void Compact_MapChip(const SSurf* s, const char* label, float cx, float c
     const int32_t w = CTextWidth(label) + 16, h = 18;
     const int32_t x = (int32_t)cx - w / 2, y = (int32_t)cyBottom - h;
     CBox(s, x, y, w, h, CC_BTN, CC_BTN_EDGE);
-    CTextCentered(s, x + w / 2, y + (h - kUiGlyphH) / 2, CC_TEXT, label);
+    CTextCentered(s, x + w / 2, y + (h - CTextHeight()) / 2, CC_TEXT, label);
     out[0] = (float)x;
     out[1] = (float)y;
     out[2] = (float)(x + w);
@@ -1428,7 +1483,7 @@ static void Compact_MapToggleChip(const SSurf* s, const char* label, bool on, fl
     const int32_t w = CTextWidth(label) + 10, h = 15;
     const int32_t px = right ? (int32_t)x - w : (int32_t)x, y = (int32_t)yBottom - h;
     CBox(s, px, y, w, h, on ? CC_TAB_ON : CC_BTN, on ? CC_TAB_ON_EDGE : CC_BTN_EDGE);
-    CTextCentered(s, px + w / 2, y + (h - kUiGlyphH) / 2, on ? CC_TAB_ON_TEXT : CC_DIM, label);
+    CTextCentered(s, px + w / 2, y + (h - CTextHeight()) / 2, on ? CC_TAB_ON_TEXT : CC_DIM, label);
     out[0] = (float)px;
     out[1] = (float)y;
     out[2] = (float)(px + w);
@@ -1444,7 +1499,7 @@ static int32_t Compact_MapLabelWidth(const char* name) {
 static void Compact_MapLabel(const SSurf* s, const char* name, int32_t x, int32_t y, int lit) {
     const int32_t w = Compact_MapLabelWidth(name);
     CBox(s, x, y, w, COMPACT_MAP_LABEL_H, lit ? CC_TAB_ON : CC_CELL, lit ? CC_TAB_ON_EDGE : CC_CELL_EDGE);
-    CText(s, x + 5, y + (COMPACT_MAP_LABEL_H - kUiGlyphH) / 2, lit ? CC_TAB_ON_TEXT : CC_TEXT, name);
+    CText(s, x + 5, y + (COMPACT_MAP_LABEL_H - CTextHeight()) / 2, lit ? CC_TAB_ON_TEXT : CC_TEXT, name);
 }
 
 /* The box around the whole world map: the map is drawn over its inside. */
@@ -1585,7 +1640,7 @@ static void Compact_PaintSidebar(const SSurf* s, const SecondScreenSnapshot* sna
         char max[8];
         snprintf(max, sizeof(max), "/%u", (unsigned)snap->walletMax);
         if (DrawHudMax(s, ix + 18 + 3 * 8, by, snap->walletMax, 0) == ix + 18 + 3 * 8)
-            CText(s, ix + 18 + 3 * 8 + 1, by + 16 - kUiGlyphH, CC_TEXT, max); /* no HUD digits (no ROM) */
+            CText(s, ix + 18 + 3 * 8 + 1, by + 16 - CTextHeight(), CC_TEXT, max); /* no HUD digits (no ROM) */
     }
     if (dungeon) {
         const SecondScreenThemeSprite* key = Port_SecondScreenTheme_Get(SST_KEY);
@@ -1600,7 +1655,7 @@ static void Compact_PaintSidebar(const SSurf* s, const SecondScreenSnapshot* sna
         const int32_t gw = 18, gh = 16, gx = ix + iw - 2 * gw - 3, gy = by - gh - 4;
         CBox(s, gx, gy, gw, gh, on ? CC_GOOD : CC_BTN, on ? CC_GOOD : CC_BTN_EDGE);
         if (wallet) BlitSprite(s, wallet, gx + (gw - 16) / 2, gy, 1);
-        else CTextCentered(s, gx + gw / 2, gy + (gh - kUiGlyphH) / 2, CC_TEXT, "$");
+        else CTextCentered(s, gx + gw / 2, gy + (gh - CTextHeight()) / 2, CC_TEXT, "$");
         AddTarget(tl, (float)gx, (float)gy, (float)(gx + gw), (float)(gy + gh), SS_ACT_DEBUG, DBG_CMD_INFINITE);
     }
     {
@@ -1842,7 +1897,7 @@ static void Compact_PaintDungeonView(const SSurf* s, const SecondScreenSnapshot*
                 char label[8];
                 if (fl >= 1) snprintf(label, sizeof(label), "%dF", fl);
                 else snprintf(label, sizeof(label), "B%d", 1 - fl);
-                CTextCentered(s, (int32_t)rx0 + bw / 2, by + (bh - kUiGlyphH) / 2, sel ? CC_TAB_ON_TEXT : CC_TEXT, label);
+                CTextCentered(s, (int32_t)rx0 + bw / 2, by + (bh - CTextHeight()) / 2, sel ? CC_TAB_ON_TEXT : CC_TEXT, label);
             }
             if (i == linkFloor &&
                 !Port_SecondScreenDungeonMap_DrawFrame(s->px, s->w, s->h, s->stride, gx0 + 0x20, ay, 1, linkFrame,
@@ -1916,9 +1971,12 @@ static volatile uint32_t sRaArmedAt;
 static uint32_t sRaPaintedVersion = 0xFFFFFFFFu;
 static uint8_t sRaToastOnScreen;
 
-/* Text as it comes (an achievement's own words are not translated): at most `chars`
- * characters. Returns the width drawn. */
+/* One line in the CJK face, at most `maxWidth` px wide; the caller's budget is
+ * expressed in 6 px cells, so it converts to px and this stops when full. */
 static int32_t CTextRaw(const SSurf* s, int32_t x, int32_t y, uint32_t color, const char* str, int chars) {
+    if (Port_Text_GetLanguage() == PORT_TEXT_ZH) {
+        return CTextCjkLimit(s, x, y, color, str, chars > 0 ? chars * kUiAdvance : 0);
+    }
     int32_t cx = x;
     for (const char* p = str; *p && chars-- > 0;) {
         const unsigned char c = Port_Text_Utf8Next(&p);
@@ -1936,10 +1994,36 @@ static int32_t CTextRaw(const SSurf* s, int32_t x, int32_t y, uint32_t color, co
     return cx - x;
 }
 
+/* The CJK face has no word spaces to break on: fill each line to its width and
+ * cut there. A Latin word may split, which is the trade a 12 px face makes. */
+static int CTextWrappedCjk(const SSurf* s, int32_t x, int32_t y, int32_t maxWidth, int lines, int32_t pitch,
+                           uint32_t color, const char* text) {
+    int line = 0;
+    for (; line < lines && *text; line++) {
+        const char* p = text;
+        int32_t used = 0;
+        while (*p) {
+            const char* q = p;
+            const int advance = UiFont_CjkAdvance(Port_Text_Utf8CodePoint(&q));
+            if (used + advance > maxWidth && used > 0) break;
+            used += advance;
+            p = q;
+        }
+        if (p == text) break; /* not even one glyph fits */
+        CTextCjkLimit(s, x, y + line * pitch, color, text, used);
+        text = p;
+        while (*text == ' ') text++;
+    }
+    return line;
+}
+
 /* `text` on up to `lines` lines of `chars` characters, broken at spaces, `pitch` px apart.
  * Returns the lines used. */
 static int CTextWrapped(const SSurf* s, int32_t x, int32_t y, int chars, int lines, int32_t pitch, uint32_t color,
                         const char* text) {
+    if (Port_Text_GetLanguage() == PORT_TEXT_ZH) {
+        return CTextWrappedCjk(s, x, y, chars * kUiAdvance, lines, pitch, color, Port_Text_Tr(text));
+    }
     int line = 0;
     for (; line < lines && *text; line++) {
         int n = 0, cutChars = 0;
@@ -2175,8 +2259,9 @@ static void Compact_PaintRaDetail(const SSurf* s, TargetList* tl, uint32_t id) {
     RaBadge(s, CC_MARGIN + 4, top + 4, kRaBadgeBig, &a);
     const int32_t tx = CC_MARGIN + 2 + frame + 8;
     int32_t y = top + 4;
-    const int lines = CTextWrapped(s, tx, y, (s->w - CC_MARGIN - tx) / kUiAdvance, 3, 10, CC_ACCENT, a.title);
-    y += lines * 10 + 4;
+    const int lines = CTextWrapped(s, tx, y, (s->w - CC_MARGIN - tx) / kUiAdvance, 3, CLineHeight(), CC_ACCENT,
+                                     a.title);
+    y += lines * CLineHeight() + 4;
     char buf[48];
     snprintf(buf, sizeof(buf), "%u %s", (unsigned)a.points, Port_Text_Tr("POINTS"));
     CText(s, tx, y, CC_GOOD, buf);
@@ -2193,9 +2278,10 @@ static void Compact_PaintRaDetail(const SSurf* s, TargetList* tl, uint32_t id) {
         CText(s, tx + 16, y + 3, RaTypeColor(a.type), RaTypeName(a.type));
     }
     y = top + frame + 10;
-    if (y < top + 4 + lines * 10 + 60) y = top + 4 + lines * 10 + 60;
+    if (y < top + 4 + lines * CLineHeight() + 60) y = top + 4 + lines * CLineHeight() + 60;
     const int32_t backY = bottom - 22;
-    CTextWrapped(s, CC_MARGIN + 3, y, (s->w - 2 * CC_MARGIN - 6) / kUiAdvance, (backY - y - 4) / 10, 10, CC_TEXT,
+    CTextWrapped(s, CC_MARGIN + 3, y, (s->w - 2 * CC_MARGIN - 6) / kUiAdvance, (backY - y - 4) / CLineHeight(),
+                 CLineHeight(), CC_TEXT,
                  a.description);
     CButton(s, tl, (s->w - 88) / 2, backY, 88, 22, "BACK", CC_TEXT, SS_ACT_RETRO, RA_CMD_BACK);
 }

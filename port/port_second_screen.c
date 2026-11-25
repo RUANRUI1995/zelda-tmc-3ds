@@ -2952,6 +2952,26 @@ static void PaintStereoWorldQuestion(const SSurf* s, TargetList* tl) {
 static void CBarLabel(const SSurf* s, int32_t barX, int32_t barY, int32_t barW, int32_t barH, int32_t fillEnd,
                       const char* str, uint32_t onEmpty, uint32_t onFill) {
     const char* tr = Port_Text_Tr(str);
+    if (Port_Text_GetLanguage() == PORT_TEXT_ZH) {
+        int32_t cx = barX + (barW - (UiFont_CjkTextWidth(tr) - 1)) / 2;
+        const int32_t y = barY + (barH - UI_CJK_CELL_H) / 2;
+        for (const char* p = tr; *p;) {
+            int advance = 0;
+            const uint8_t* rows = UiFont_CjkGlyph(Port_Text_Utf8CodePoint(&p), &advance);
+            if (rows) {
+                for (int32_t gy = 0; gy < UI_CJK_CELL_H; gy++) {
+                    const uint32_t bits = ((uint32_t)rows[gy * 2] << 8) | rows[gy * 2 + 1];
+                    if (bits == 0) continue;
+                    for (int32_t gx = 0; gx < UI_CJK_CELL_W; gx++)
+                        if (bits & (0x8000u >> gx))
+                            FillRect(s, cx + gx, y + gy, cx + gx + 1, y + gy + 1,
+                                     cx + gx < fillEnd ? onFill : onEmpty);
+                }
+            }
+            cx += advance;
+        }
+        return;
+    }
     int32_t cx = barX + (barW - CTextWidth(tr)) / 2;
     const int32_t y = barY + (barH - kUiGlyphH) / 2;
     for (const char* q = tr; *q;) {

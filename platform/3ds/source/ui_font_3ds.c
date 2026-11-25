@@ -7,7 +7,9 @@
 // separate mark drawn above the glyph (UiFont_Mark), so it keeps its full height.
 #include <stddef.h>
 
+#include "port_text_i18n.h"
 #include "ui_font_3ds.h"
+#include "ui_cjk_font.inc"
 
 const uint8_t *UiFont_Glyph(unsigned char c) {
     static const uint8_t digits[10][7] = {
@@ -129,4 +131,42 @@ const uint8_t *UiFont_Mark(unsigned char c) {
         case 0xC4: case 0xCB: case 0xCF: case 0xD6: case 0xDC: return dots;
         default: return NULL;
     }
+}
+
+/* ---- the 12x12 Chinese face ---------------------------------------- */
+
+static const UiCjkGlyph *FindCjkGlyph(uint32_t codePoint) {
+    int lo = 0;
+    int hi = UI_CJK_GLYPH_COUNT - 1;
+    while (lo <= hi) {
+        const int mid = (lo + hi) / 2;
+        const uint32_t at = kUiCjkGlyphs[mid].codePoint;
+        if (at == codePoint) return &kUiCjkGlyphs[mid];
+        if (at < codePoint) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return NULL;
+}
+
+const uint8_t *UiFont_CjkGlyph(uint32_t codePoint, int *advance) {
+    const UiCjkGlyph *g = FindCjkGlyph(codePoint);
+    if (g == NULL) {
+        if (advance) *advance = UI_CJK_CELL_W; /* unknown: keep the cell, never glue */
+        return NULL;
+    }
+    if (advance) *advance = g->advance;
+    return &g->rows[0][0];
+}
+
+int UiFont_CjkAdvance(uint32_t codePoint) {
+    const UiCjkGlyph *g = FindCjkGlyph(codePoint);
+    return g != NULL ? (int)g->advance : UI_CJK_CELL_W;
+}
+
+int UiFont_CjkTextWidth(const char *utf8) {
+    int width = 0;
+    for (const char *p = utf8; p != NULL && *p != '\0';) {
+        width += UiFont_CjkAdvance(Port_Text_Utf8CodePoint(&p));
+    }
+    return width;
 }

@@ -25,6 +25,9 @@ bool Port_SecondScreen_3DS_UpdateOpen(void) {
 
 static void UpdateUpper(char* out, size_t cap, const char* text) {
     snprintf(out, cap, "%s", text);
+    /* Chinese has no case, and running toupper over UTF-8 bytes risks the
+     * lead/continuation pairs the 12x12 face needs. */
+    if (Port_Text_GetLanguage() == PORT_TEXT_ZH) return;
     for (char* c = out; *c; ++c) *c = (char)toupper((unsigned char)*c);
 }
 
@@ -116,7 +119,8 @@ static void PaintUpdateNotes(const SSurf* s, TargetList* tl, const UpdateStatus*
     CTextCentered(s, s->w / 2, top + 6, CC_TEXT, head);
     CBox(s, CC_MARGIN, listY, w, buttonsY - CC_GAP - listY, CC_CELL, CC_CELL_EDGE);
     for (unsigned i = page * perPage; i < sNoteCount && i < (page + 1) * perPage; ++i)
-        CText(s, CC_MARGIN + 6, listY + 4 + (int32_t)(i - page * perPage) * 10, CC_TEXT, sNoteLines[i]);
+        CText(s, CC_MARGIN + 6, listY + 4 + (int32_t)(i - page * perPage) * CLineHeight(), CC_TEXT,
+              sNoteLines[i]);
     CButton(s, tl, CC_MARGIN, buttonsY, 64, 24, "PREV", page ? CC_TEXT : CC_FAINT, SS_ACT_UPDATE_PREV, 0);
     CButton(s, tl, CC_MARGIN + w - 64, buttonsY, 64, 24, "NEXT", page + 1 < pages ? CC_TEXT : CC_FAINT,
             SS_ACT_UPDATE_NEXT, 0);
@@ -172,10 +176,15 @@ static void PaintUpdatePanel(const SSurf* s, TargetList* tl) {
     if (!message[0]) message = "PRESS CHECK TO LOOK FOR A NEW VERSION";
     UpdateUpper(text, sizeof(text), Port_Text_Tr(message));
     char lines[4][64];
-    unsigned n = UpdateWrap(text, (unsigned)(w - 10) / kUiAdvance, lines, 3);
+    /* A budget in cells is a budget in 6 px units either way: the CJK face is
+     * wider, so it fits fewer of them. */
+    const unsigned cols = (unsigned)(w - 10) / (Port_Text_GetLanguage() == PORT_TEXT_ZH
+                                                  ? (unsigned)(kUiAdvance * 2)
+                                                  : (unsigned)kUiAdvance);
+    unsigned n = UpdateWrap(text, cols, lines, 3);
     uint32_t color = st.state == UPDATE_ERROR ? CC_BAD : st.state == UPDATE_AVAILABLE || confirm ? CC_WARN
                      : st.state == UPDATE_DONE || st.state == UPDATE_CURRENT ? CC_GOOD : CC_TEXT;
-    const int32_t statusH = 44;
+    const int32_t statusH = 14 + 3 * CLineHeight();
     CBox(s, CC_MARGIN, y, w, statusH, CC_CELL, CC_TAB);
     CText(s, CC_MARGIN + 4, y + 4, CC_DIM, "STATUS");
     /* What is installed, with its channel: "0.1.2 BETA", "0.1.2-DEV.54+758FD59". */
@@ -186,7 +195,7 @@ static void PaintUpdatePanel(const SSurf* s, TargetList* tl) {
         strncat(installed, text, sizeof(installed) - strlen(installed) - 1);
         CText(s, CC_MARGIN + w - 4 - CTextWidth(installed), y + 4, CC_DIM, installed);
     }
-    for (unsigned i = 0; i < n; ++i) CText(s, CC_MARGIN + 4, y + 14 + (int32_t)i * 10, color, lines[i]);
+    for (unsigned i = 0; i < n; ++i) CText(s, CC_MARGIN + 4, y + 14 + (int32_t)i * CLineHeight(), color, lines[i]);
     y += statusH + CC_GAP;
 
     const bool working = st.state == UPDATE_DOWNLOADING || st.state == UPDATE_VERIFYING || st.state == UPDATE_INSTALLING;
