@@ -46,10 +46,21 @@ jobs:
           command -v python3 > /dev/null || (apt-get update -qq && apt-get install -y -qq python3 > /dev/null)
 
       - name: Build CIA and 3DSX
+        # A failed run otherwise only says "step failed" and leaves the reason in
+        # a log that has to be downloaded by hand. Keep the full log, and on
+        # failure republish its diagnostics as an annotation so the compiler
+        # errors show up on the commit itself.
         run: |
           git config --global --add safe.directory '*'
           chmod +x platform/3ds/tools/bin/bannertool platform/3ds/tools/bin/makerom
-          TMC3DS_DEBUG_TOOLS=1 TMC3DS_JOBS=$(nproc) ./platform/3ds/build.sh
+          set +e
+          TMC3DS_DEBUG_TOOLS=1 TMC3DS_JOBS="$(nproc)" ./platform/3ds/build.sh > "${RUNNER_TEMP}/build.log" 2>&1
+          status=$?
+          cat "${RUNNER_TEMP}/build.log"
+          if [ "${status}" -ne 0 ]; then
+            python3 platform/3ds/tools/annotate_build_log.py "${RUNNER_TEMP}/build.log" || true
+          fi
+          exit "${status}"
 
       - name: Verify build outputs and legal files
         run: |
