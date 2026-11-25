@@ -110,7 +110,12 @@ bool32 Port_RepairGoronBottle(SaveFile* save, bool32 nonstandardProfile) {
     return TRUE;
 }
 
+/* The repairs below are USA/EU save-compatibility fixes keyed to the USA flag
+ * ids. The JP ROM numbers these flags differently, so the assertion only holds
+ * for the builds it describes. */
+#if !defined(JP)
 static_assert(KAKERA_TAKARA_A == 0xB4u, "USA Smith bottle flag changed");
+#endif
 static_assert(KINSTONE_A == 0x0Au, "EU 0xB4 owner fusion changed");
 static_assert(KINSTONE_16 == 0x16u, "Smith fusion id changed");
 static_assert(ITEM_BOTTLE4 == ITEM_BOTTLE1 + 3, "bottle inventory ids must remain contiguous");
