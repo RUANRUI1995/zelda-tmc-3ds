@@ -3,9 +3,10 @@
 #include <string.h>
 
 /* One row per English UI string, columns in PortTextLanguage order:
- * EN, FR, DE, ES, IT. The source is UTF-8; the renderer maps it to the
- * game's charmap (see Port_Text_Utf8Next). Text is kept short: the
- * bottom-screen font is wide and chips are sized to their words. */
+ * EN, FR, DE, ES, IT, ZH. The source is UTF-8; the renderer maps it to the
+ * game's charmap (see Port_Text_Utf8Next), and the 3DS bottom screen draws
+ * the ZH column with its own 12x12 face. Text is kept short: chips are
+ * sized to their words, and a Chinese cell holds five full-width glyphs. */
 static const char* const kEntries[][PORT_TEXT_COUNT] = {
     { "AUTO", "AUTO", "AUTO", "AUTO", "AUTO", "自动" },
     { "BILINEAR", "BILINÉAIRE", "BILINEAR", "BILINEAL", "BILINEARE", "双线性" },
@@ -18,6 +19,7 @@ static const char* const kEntries[][PORT_TEXT_COUNT] = {
     { "TURBO", "TURBO", "TURBO", "TURBO", "TURBO", "加速" },
     { "GAME", "JEU", "SPIEL", "JUEGO", "GIOCO", "游戏" },
     { "INTERFACE", "INTERFACE", "OBERFLÄCHE", "INTERFAZ", "INTERFACCIA", "界面" },
+    { "LANGUAGE", "LANGUE", "SPRACHE", "IDIOMA", "LINGUA", "语言" },
     { "SYSTEM", "SYSTÈME", "SYSTEM", "SISTEMA", "SISTEMA", "系统" },
     { "LAYERS", "COUCHES", "EBENEN", "CAPAS", "LIVELLI", "图层" },
     { "DEPTH", "PROFONDEUR", "TIEFE", "PROFUNDIDAD", "PROFONDITÀ", "景深" },
@@ -287,8 +289,26 @@ static const char* const kEntries[][PORT_TEXT_COUNT] = {
  * bottom-screen and updater threads; a single byte, so a stale read only
  * means one frame of the previous language. */
 static volatile uint8_t sLanguage = PORT_TEXT_EN;
+/* The language the game itself reports (its file-select screen). */
+static volatile uint8_t sGameLanguage = PORT_TEXT_EN;
 /* Set once the 3DS build knows the loaded ROM is a Chinese translation. */
 static volatile uint8_t sChineseUi = 0;
+/* OPTIONS -> LANGUAGE: the player's pick, PORT_TEXT_AUTO while the language
+ * still follows the game and the ROM profile. */
+static volatile int8_t sOverride = PORT_TEXT_AUTO;
+
+/* One place decides, so the three inputs cannot disagree: an explicit pick
+ * wins, then a Chinese ROM's translation, then the game's own language. */
+static void ResolveLanguage(void) {
+    PortTextLanguage lang = (PortTextLanguage)sGameLanguage;
+    if (sChineseUi) {
+        lang = PORT_TEXT_ZH;
+    }
+    if (sOverride >= 0 && sOverride < PORT_TEXT_COUNT) {
+        lang = (PortTextLanguage)sOverride;
+    }
+    sLanguage = (uint8_t)lang;
+}
 
 void Port_Text_SetLanguage(int publicLanguage) {
     /* include/main.h: JP=0, EN=1, FR=2, DE=3, ES=4, IT=5. */
@@ -296,11 +316,8 @@ void Port_Text_SetLanguage(int publicLanguage) {
     if (publicLanguage >= 2 && publicLanguage <= 5) {
         lang = (PortTextLanguage)(publicLanguage - 1);
     }
-    /* A Chinese ROM reports JP (0), which would otherwise land on English. */
-    if (sChineseUi) {
-        lang = PORT_TEXT_ZH;
-    }
-    sLanguage = (uint8_t)lang;
+    sGameLanguage = (uint8_t)lang;
+    ResolveLanguage();
 }
 
 PortTextLanguage Port_Text_GetLanguage(void) {
@@ -309,10 +326,38 @@ PortTextLanguage Port_Text_GetLanguage(void) {
 
 void Port_Text_SetChineseUi(int enabled) {
     sChineseUi = enabled ? 1u : 0u;
+    ResolveLanguage();
 }
 
 int Port_Text_ChineseUi(void) {
     return sChineseUi ? 1 : 0;
+}
+
+void Port_Text_SetUiLanguage(int lang) {
+    sOverride = (lang >= 0 && lang < PORT_TEXT_COUNT) ? (int8_t)lang : PORT_TEXT_AUTO;
+    ResolveLanguage();
+}
+
+int Port_Text_UiLanguage(void) {
+    return sOverride;
+}
+
+/* The language in its own words, as the OPTIONS -> LANGUAGE cell shows it.
+ * Each name is only ever drawn while its own language is the one drawing, so
+ * an accented Latin name stays in the 5x7 face's Latin-1 range and Chinese is
+ * the two glyphs the 12x12 table carries. These are not translation keys -
+ * they are already in the language they name - so none goes through
+ * Port_Text_Tr. */
+const char* Port_Text_LanguageName(PortTextLanguage lang) {
+    switch (lang) {
+        case PORT_TEXT_FR: return "FRAN\xC3\x87" "AIS";  /* FRANÇAIS */
+        case PORT_TEXT_DE: return "DEUTSCH";
+        case PORT_TEXT_ES: return "ESPA\xC3\x91" "OL";   /* ESPAÑOL */
+        case PORT_TEXT_IT: return "ITALIANO";
+        case PORT_TEXT_ZH: return "\xE4\xB8\xAD\xE6\x96\x87";  /* 中文 */
+        case PORT_TEXT_EN:
+        default: return "ENGLISH";
+    }
 }
 
 const char* Port_Text_TrFor(PortTextLanguage lang, const char* english) {

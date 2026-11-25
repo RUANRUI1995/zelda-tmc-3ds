@@ -41,6 +41,51 @@ int main(void) {
     Port_Text_SetLanguage(0);
     CHECK(Port_Text_GetLanguage() == PORT_TEXT_EN);
 
+    /* OPTIONS -> LANGUAGE: an explicit pick beats both the game's language and
+     * the ROM profile, and AUTO hands the decision back. */
+    Port_Text_SetUiLanguage(PORT_TEXT_AUTO);
+    Port_Text_SetLanguage(2); /* the game says FR */
+    CHECK(Port_Text_GetLanguage() == PORT_TEXT_FR);
+    Port_Text_SetUiLanguage(PORT_TEXT_ZH);
+    CHECK(Port_Text_GetLanguage() == PORT_TEXT_ZH);
+    CHECK(strcmp(Port_Text_Tr("BACK"), "\xE8\xBF\x94\xE5\x9B\x9E") == 0); /* 返回 */
+    Port_Text_SetLanguage(3); /* the game changing again does not move it */
+    CHECK(Port_Text_GetLanguage() == PORT_TEXT_ZH);
+    Port_Text_SetChineseUi(1);
+    CHECK(Port_Text_GetLanguage() == PORT_TEXT_ZH); /* nor does the profile */
+    Port_Text_SetChineseUi(0);
+    Port_Text_SetUiLanguage(PORT_TEXT_AUTO);
+    CHECK(Port_Text_GetLanguage() == PORT_TEXT_DE);
+    Port_Text_SetUiLanguage(99); /* out of range reads as AUTO */
+    CHECK(Port_Text_UiLanguage() == PORT_TEXT_AUTO);
+    Port_Text_SetUiLanguage(-5);
+    CHECK(Port_Text_UiLanguage() == PORT_TEXT_AUTO);
+    Port_Text_SetLanguage(1);
+
+    /* A name is never a table key: a key would be translated into the wrong
+     * language. Each names itself, in the face that draws it. */
+    for (int lang = 0; lang < PORT_TEXT_COUNT; lang++) {
+        const char* name = Port_Text_LanguageName((PortTextLanguage)lang);
+        CHECK(name != NULL && name[0] != '\0');
+        for (int i = 0; i < Port_Text_EntryCount(); i++) {
+            if (strcmp(name, Port_Text_EntryAt(i, PORT_TEXT_EN)) == 0) {
+                fprintf(stderr, "language name is a table key: %s\n", name);
+                return 1;
+            }
+        }
+        /* Drawn in a quarter-width cell's value row: 68 px of room, 6 px per
+         * Latin character and 12 per full-width glyph. */
+        int px = 0;
+        for (const char* p = name; *p;) {
+            px += Port_Text_Utf8CodePoint(&p) < 0x80 ? 6 : 12;
+        }
+        if (px > 68) {
+            fprintf(stderr, "language name too wide (%d px): %s\n", px, name);
+            return 1;
+        }
+    }
+    CHECK(strcmp(Port_Text_LanguageName(PORT_TEXT_ZH), "\xE4\xB8\xAD\xE6\x96\x87") == 0); /* 中文 */
+
     /* English and unknown strings come back untouched (same pointer). */
     const char* unknown = "NOT IN THE TABLE";
     Port_Text_SetLanguage(4);
@@ -83,7 +128,7 @@ int main(void) {
         "CREST PINS", "FLOOR BACK", "COLOURS", "THEME", "SHOW FPS", "SHOW", "HIDE", "ON", "OFF", "RESTART",
         "ORIGINAL", "STABLE", "SLATE", "PARCHMENT", "NIGHT GOLD", "FOREST", "PATTERN", "NONE", "BACK",
         "PREV", "NEXT", "SAVE OVER", "DELETE", "LOAD", "SURE?", "AUTO", "BILINEAR", "PIXEL P.", "GBA GRID",
-        "INTERFACE", "NEIGHBOURS", "DEPTH", "LAYERS",
+        "INTERFACE", "NEIGHBOURS", "DEPTH", "LAYERS", "LANGUAGE",
     };
     for (size_t i = 0; i < sizeof(kCellWords) / sizeof(kCellWords[0]); i++) {
         for (int lang = PORT_TEXT_FR; lang < PORT_TEXT_ZH; lang++) {

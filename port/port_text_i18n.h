@@ -7,7 +7,8 @@
  * into. Follows the language the player picked in the game's file-select
  * screen; the USA ROM (English only) and the JP ROM always resolve to EN,
  * except that a Chinese ROM turns the port's own UI Chinese too (see
- * Port_Text_SetChineseUi). */
+ * Port_Text_SetChineseUi). OPTIONS -> LANGUAGE (Port_Text_SetUiLanguage)
+ * overrides both, and the override is what gets saved. */
 typedef enum {
     PORT_TEXT_EN = 0,
     PORT_TEXT_FR,
@@ -17,6 +18,9 @@ typedef enum {
     PORT_TEXT_ZH,
     PORT_TEXT_COUNT
 } PortTextLanguage;
+
+/* Port_Text_SetUiLanguage: follow the game and the ROM profile again. */
+#define PORT_TEXT_AUTO (-1)
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,6 +38,17 @@ PortTextLanguage Port_Text_GetLanguage(void);
  * other builds and the host tests keep following the game's language. */
 void Port_Text_SetChineseUi(int enabled);
 int Port_Text_ChineseUi(void);
+
+/* A language the player picked in OPTIONS -> LANGUAGE, which wins over the
+ * game's and the ROM's; PORT_TEXT_AUTO gives that decision back. Setting it
+ * selects the language at once: the bottom screen reads it per frame. */
+void Port_Text_SetUiLanguage(int lang);
+int Port_Text_UiLanguage(void);
+
+/* The language written in its own words ("ENGLISH", "FRANÇAIS", "中文"), for
+ * the OPTIONS cell that names it. Only ever shown while that language is the
+ * one drawing, so each name stays inside its own face. Never translated. */
+const char* Port_Text_LanguageName(PortTextLanguage lang);
 
 /* Translate an English UI string, keyed by its exact (upper-case) literal.
  * Strings with no entry are returned unchanged, so call sites keep the
