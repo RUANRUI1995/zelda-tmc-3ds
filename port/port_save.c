@@ -40,6 +40,7 @@
 
 #include "port_types.h"
 #include "port_save.h"
+#include "port_rom_profile.h"
 #include "region.h"
 #include <errno.h>
 #include <stdio.h>
@@ -964,13 +965,15 @@ static int IsManagedProfilePath(const char* path);
 
 #ifdef MULTI_REGION
 /*
- * Region-isolated saves (M5). The fat binary plays USA/EU/JP from one executable;
- * each region's in-game save signature differs ("ZELDA 5" USA vs "ZELDA 3" EU/JP),
- * so a shared save file makes InitSaveData wipe the other region's data on load.
- * Give each region its own default store so switching ROMs never wipes or corrupts:
- *   USA -> tmc.sav (unchanged, back-compat with existing installs)
- *   EU  -> tmc_eu.sav
- *   JP  -> tmc_jp.sav
+ * Variant/region-isolated saves (M5). The fat binary plays USA/EU/JP from one
+ * executable; each region's in-game save signature differs ("ZELDA 5" USA vs
+ * "ZELDA 3" EU/JP), so a shared save file makes InitSaveData wipe the other
+ * region's data on load. Patched JP variants share the JP signature but not
+ * their contents, so they get their own namespace as well:
+ *   USA          -> tmc.sav (unchanged, back-compat with existing installs)
+ *   EU           -> tmc_eu.sav
+ *   JP           -> tmc_jp.sav
+ *   JP Angel SP4 -> tmc_jp_angel_sp4.sav, even in a single-region JP build
  * An explicit named profile (config.json) is region-agnostic and left untouched.
  * Resolved lazily here because the active region is only known after Port_LoadRom,
  * which runs after the startup Port_Save_SetActivePath() call.
@@ -980,7 +983,12 @@ static void ResolveRegionDefaultPath(void) {
     if (sExplicitProfile) {
         return;
     }
-    if (REGION_IS_EU) {
+    if (Port_GetRomVariant() == PORT_ROM_VARIANT_JP_ANGEL_SP4 && Port_GetVariantSaveFilename() != NULL) {
+        /* The clean JP ROM and the SP4 patch are both BZMJ and both 16 MiB, so
+         * nothing but the variant tells them apart — and they must never share
+         * a store, or loading one wipes the other. */
+        name = Port_GetVariantSaveFilename();
+    } else if (REGION_IS_EU) {
         name = "tmc_eu.sav";
     } else if (REGION_IS_JP) {
         name = "tmc_jp.sav";

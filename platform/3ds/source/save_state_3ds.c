@@ -13,6 +13,7 @@
 #include "save.h"
 #include "sound.h"
 #include "port_config.h"
+#include "port_rom_profile.h"
 #include "port_audio_3ds.h"
 #include "port_entity_ctx.h"
 #include "debug_log_3ds.h"
@@ -371,7 +372,16 @@ static uint32_t GameFingerprint(void) {
 }
 
 static uint32_t RomIdentity(void) {
-    return ((uint32_t)gRomRegion + 1u) * 0x01000193u ^ gRomSize;
+    /* Retail profiles keep the historical value so states written by older
+     * builds still load. Patched variants share a game code, region and size
+     * with the clean ROM they derive from, so without this term their states
+     * would be interchangeable — and they are not. */
+    const uint32_t variant = (uint32_t)Port_GetRomVariant();
+    const uint32_t extra = (variant == PORT_ROM_VARIANT_USA_RETAIL || variant == PORT_ROM_VARIANT_EU_RETAIL ||
+                            variant == PORT_ROM_VARIANT_JP_RETAIL)
+                               ? 0u
+                               : variant;
+    return ((((uint32_t)gRomRegion + 1u) * 0x01000193u) ^ gRomSize) ^ (extra * 0x85EBCA6Bu);
 }
 
 static bool HeaderLoadable(const StateHeader* h) {

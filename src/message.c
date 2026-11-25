@@ -10,6 +10,7 @@
 #ifdef PC_PORT
 #include <stdio.h>
 #include "../port/port_tts.h"
+#include "port_rom_profile.h"
 #endif
 
 #define MESSAGE_ADVANCE_KEYS (A_BUTTON | B_BUTTON | DPAD_ANY | R_BUTTON)
@@ -730,7 +731,13 @@ u16 RunTextCommand(TextRender* this) {
         gMessage.unk = 0x80;
     }
     this->curToken.extended = 0;
+#ifdef PC_PORT
+    /* The bank that switches palette is bank 7 in the retail ROMs; the SP4
+     * patch keeps its own palette glyphs in a different bank. */
+    if (((chr >> 8) & 0xFu) == Port_GetSpecialPaletteBank()) {
+#else
     if (chr >> 8 == 7) {
+#endif
         this->_90 = this->_8f | 0x80;
         PaletteChange(this, 0);
     } else {
