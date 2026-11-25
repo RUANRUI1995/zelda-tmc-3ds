@@ -104,7 +104,7 @@ int main(void) {
         for (const char* p = t; *p;) {
             px += Port_Text_Utf8CodePoint(&p) < 0x80 ? 6 : 12;
         }
-        if (px > 72) {
+        if (px > 68) {
             fprintf(stderr, "too wide for a cell (%d px): %s -> %s\n", px, kCellWords[i], t);
             return 1;
         }
