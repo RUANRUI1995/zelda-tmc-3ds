@@ -10,7 +10,14 @@
 # tag would, and a tag-less clone still computes the same version a clone with
 # tags does.
 #
-# Tags win when a clone has them; this is the fallback. Update both fields when
-# this line is retagged, and keep them pointing at the newest release. The
-# version may carry this fork's build suffix (0.4.7c), like its tags do.
+# Tags win when a clone has them; this is the fallback. The version may carry
+# this fork's build suffix (0.4.7c), like its tags do.
+#
+# It is the UPSTREAM release this line derives from, not this fork's own tag
+# (v0.4.7c), for one reason: the release workflow starts its changelog at the
+# newest tag before the release, and a fork's clone holds no upstream tags - so
+# the pin is what makes the notes of a first release of a line cover the whole
+# Chinese work instead of the last two commits. The version string it yields for
+# a tag-less clone (0.4.7-dev.N, i.e. a dev build of that release) is the
+# truthful one; the released build carries its tag.
 0.4.7 52927925b1eff006733cd2857ac39a338cd19683

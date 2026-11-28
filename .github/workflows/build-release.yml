@@ -28,15 +28,17 @@ jobs:
       # This fork's numbering is the upstream release plus a letter (v0.4.7c),
       # so the pages of the numbering it replaces are retired here: left in
       # place, the updater would keep offering them (0.5.0 ranks above 0.4.7c)
-      # and the release list would show two names for one line. Deleting the tag
-      # as well, and doing it before the checkout, keeps it out of the changelog
-      # lookup below. The API is used directly: the container has curl but not gh.
+      # and the release list would show two names for one line. v0.0.0-dev.d1008df
+      # is the beta published before the fork could name its releases at all.
+      # Deleting the tags as well, and doing it before the checkout, keeps them
+      # out of the changelog lookup below. The API is used directly: the
+      # container has curl but not gh.
       - name: Retire the releases this one replaces
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          for TAG in v0.5.0; do
+          for TAG in v0.5.0 v0.0.0-dev.d1008df; do
             for ENDPOINT in "releases/tags/${TAG}" "git/refs/tags/${TAG}"; do
               CODE=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE \
                 -H "Authorization: Bearer ${GH_TOKEN}" \
@@ -213,6 +215,27 @@ jobs:
         with:
           name: tmc-3ds-build
           path: tmc-3ds-v*.cia
+
+      # softprops/action-gh-release replaces an existing page's assets but
+      # leaves its title and body alone, so re-tagging (a re-cut release, a
+      # corrected changelog) would keep publishing the previous run's text.
+      # Dropping the page first makes the release a function of the tag alone.
+      - name: Drop the page this tag already has
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.vars.outputs.tag }}
+        run: |
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/releases/tags/${TAG}")
+          echo "DELETE releases/tags/${TAG}: ${CODE}"
+          case "$CODE" in
+            204) echo "dropped, it will be recreated below" ;;
+            404|422) echo "no page for ${TAG} yet" ;;
+            *) echo "::error::could not drop the page for ${TAG} (HTTP ${CODE})"; exit 1 ;;
+          esac
 
       - name: Create / update GitHub Release
         uses: softprops/action-gh-release@v2

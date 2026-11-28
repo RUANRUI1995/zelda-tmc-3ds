@@ -133,7 +133,9 @@ The run also deletes the release pages listed in its "Retire the releases this
 one replaces" step, tag included, before the checkout: a page left behind would
 keep being offered by the updater (`0.5.0` outranks `0.4.7c`) and the changelog
 would start after it. Add a tag to that list when a page is superseded, and
-leave older pages alone otherwise.
+leave older pages alone otherwise. A second step drops the page the tag itself
+already has before recreating it, so a re-cut tag republishes its title and body
+instead of only its assets (`softprops/action-gh-release` keeps both).
 
 `.github/workflows/build-3ds.yml` only compiles (debug tools on) for pull requests
 and pushes to `main` and `release/**`; it publishes nothing.
