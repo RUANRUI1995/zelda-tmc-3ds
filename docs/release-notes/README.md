@@ -1,6 +1,7 @@
 # Release notes
 
-One file per tag: `vX.Y.Z.md`. The release workflow copies it into the GitHub
+One file per tag: `vX.Y.Z.md` (or `vX.Y.Zc.md` for this fork's Chinese build of
+an upstream release). The release workflow copies it into the GitHub
 release body between `<!-- tmc-notes -->` markers, and the console's updater shows
 it before the player installs.
 

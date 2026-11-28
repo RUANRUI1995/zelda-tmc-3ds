@@ -2,13 +2,16 @@ name: Build 3DS Release
 
 # Same release scheme as ../mzm and ../sm-3ds (CLAUDE.md, "Releases"):
 # a vX.Y.Z tag builds the CIA and publishes a GitHub Release.
-# Only three-component tags are ours: the upstream port's tags (v2.1,
-# v2.2-E1...) live in this repository too and never trigger a build.
+# Only three-component tags are ours, plus this fork's single-letter build
+# suffix (v0.4.7c: the upstream release, marked as the Chinese build). The
+# upstream port's tags (v2.1, v2.2-E1...) live in this repository too and never
+# trigger a build.
 
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+[a-z]'
   workflow_dispatch:
 
 permissions:
@@ -22,6 +25,32 @@ jobs:
       image: devkitpro/devkitarm:20260610
 
     steps:
+      # This fork's numbering is the upstream release plus a letter (v0.4.7c),
+      # so the pages of the numbering it replaces are retired here: left in
+      # place, the updater would keep offering them (0.5.0 ranks above 0.4.7c)
+      # and the release list would show two names for one line. Deleting the tag
+      # as well, and doing it before the checkout, keeps it out of the changelog
+      # lookup below. The API is used directly: the container has curl but not gh.
+      - name: Retire the releases this one replaces
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          for TAG in v0.5.0; do
+            for ENDPOINT in "releases/tags/${TAG}" "git/refs/tags/${TAG}"; do
+              CODE=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${REPO}/${ENDPOINT}")
+              echo "DELETE ${ENDPOINT}: ${CODE}"
+              case "$CODE" in
+                204) echo "removed" ;;
+                404|422) echo "already gone" ;;
+                *) echo "::error::could not retire ${ENDPOINT} (HTTP ${CODE})"; exit 1 ;;
+              esac
+            done
+          done
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -121,7 +150,7 @@ jobs:
             # A fork carries no tags, so the tag above finds nothing and the
             # changelog would become the whole history. Start it at the release
             # this line descends from, which release_base.txt pins.
-            PIN=$(awk '{ sub(/\r$/, "") } $1 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ && $2 ~ /^[0-9a-f]+$/ { print $2; exit }' platform/3ds/release_base.txt)
+            PIN=$(awk '{ sub(/\r$/, "") } $1 ~ /^[0-9]+\.[0-9]+\.[0-9]+[a-z]?$/ && $2 ~ /^[0-9a-f]+$/ { print $2; exit }' platform/3ds/release_base.txt)
             if [ -n "$PIN" ] && git rev-parse --verify -q "${PIN}^{commit}" > /dev/null; then
               PREV="$PIN"
             fi

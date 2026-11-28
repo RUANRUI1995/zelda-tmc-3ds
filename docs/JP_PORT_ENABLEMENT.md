@@ -134,7 +134,7 @@ These differ from tinaut1986's tree so a build of this branch cannot be
 mistaken for, or replaced by, the English-only original:
 
 - `platform/3ds/tools/version.sh` describes a build off the last `v0.*` tag
-  (`0.5.0-dev.1+<hash>`) instead of falling through to `0.0.0-dev+<hash>`. The
+  (`0.4.7c-dev.1+<hash>`) instead of falling through to `0.0.0-dev+<hash>`. The
   upstream port's `v2.x` tags are a different lineage and are deliberately
   excluded from the match. Tags win when a clone has them.
 - `platform/3ds/release_base.txt` pins the release this branch descends from

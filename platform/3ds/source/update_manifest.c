@@ -24,6 +24,12 @@ static bool parse_version(const char *s, Version *v) {
     if (i == 2) return false;
     s++;
   }
+  /* This fork names its builds after the upstream release they derive from plus
+   * one letter (v0.4.7c, the Chinese build). The letter marks the build, not a
+   * newer number: the three parts still order it, so 0.4.7c ranks exactly on
+   * 0.4.7 - it never offers itself as an update over that release, and any
+   * newer number supersedes it (same rule as ../mzm). */
+  if (isalpha((unsigned char)*s)) s++;
   if (*s == '-') {
     s++;
     // Our own builds: "-beta" is a published pre-release (the CI bakes the

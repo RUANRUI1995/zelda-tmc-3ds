@@ -1017,7 +1017,7 @@ void VBlankIntrWait(void) {
 /* TMC_PORT_VERSION is set by xmake.lua's add_defines; the fallback below
  * is just for IDE indexers that don't see the build flags. */
 #ifndef TMC_PORT_VERSION
-#define TMC_PORT_VERSION "0.5.0"
+#define TMC_PORT_VERSION "0.4.7c"
 #endif
         if (decoupled) {
             SDL_snprintf(title, sizeof(title), "The Minish Cap " TMC_PORT_VERSION " - %.1f FPS / %.1f TPS", fps, tps);

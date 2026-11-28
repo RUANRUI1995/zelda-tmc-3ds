@@ -33,6 +33,13 @@ int main(int argc,char **argv) {
  assert(Update_IsNewer("v0.1.1-beta","0.1.0"));assert(!Update_IsNewer("v0.1.0-beta","0.1.0-beta"));
  assert(Update_IsNewer("v0.1.0-beta","0.1.0-dev.3.2+abc1234"));assert(!Update_IsNewer("v0.1.0-dev.5+abc1234","0.1.0-beta"));assert(!Update_IsNewer("v0.1.0","0.1.1-dev.1+abc1234"));
  assert(!Update_ValidVersion("0.1.0-dev/../x"));assert(!Update_ValidVersion("0.1.0-betax"));
+ // This fork's build of an upstream release: one trailing letter (v0.4.7c). The
+ // letter marks the build, not a newer number, so it sits exactly on 0.4.7.
+ assert(Update_ValidVersion("v0.4.7c"));assert(Update_ValidVersion("0.4.7c"));
+ assert(!Update_IsNewer("v0.4.7c","0.4.7"));assert(!Update_IsNewer("v0.4.7","0.4.7c"));
+ assert(!Update_IsNewer("v0.4.7c","0.4.7c"));assert(Update_IsNewer("v0.4.7c","0.4.7-beta"));
+ assert(Update_IsNewer("v0.4.8","0.4.7c"));assert(!Update_IsNewer("v0.4.7c","0.4.8"));
+ assert(!Update_ValidVersion("0.4.7cc"));assert(!Update_ValidVersion("0.4.7c-dev/../x"));
  char lines[384][43];
  unsigned count=Update_FormatNotes("## Changelog\n\n- **Fixed** [world colors](https://example.com).\n![QR](https://example.com/qr.png)",lines,384);
  assert(count==3 && !strcmp(lines[0],"Changelog") && !lines[1][0] && !strcmp(lines[2],"- Fixed world colors."));
@@ -60,6 +67,9 @@ int main(int argc,char **argv) {
  json_array_append_new(r,make("v3.2-E2",true,false));json_array_append_new(r,make("v3.2-E10",true,false));
  json_array_append_new(r,make("v3.3",false,false));assert(parse(r,true,false,&out)==1&&!strcmp(out.version,"v3.2-E10"));json_decref(r);
  r=make("v3.1",false,true);assert(parse(r,false,true,&out)==1);json_decref(r);
+ // A release of this fork: the tag carries the letter, so does the package name
+ // (tmc-3ds-v0.4.7c.cia) the updater expects to find on the page.
+ r=make("v0.4.7c",false,false);assert(parse(r,false,false,&out)==1&&!strcmp(out.version,"v0.4.7c"));json_decref(r);
  {
    // The list endpoint: channels, the newest of betas and stable, and the notes in between.
    json_t *l=json_array();

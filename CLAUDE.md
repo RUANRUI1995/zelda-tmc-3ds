@@ -87,13 +87,24 @@ Other local checkouts: `../mzm` and `../sm-3ds`, the reference ports.
 Our own numbering, independent of upstream's: `vX.Y.Z`, started at `v0.1.0`.
 Minor = milestone, patch = fix round. Ask before a minor bump; never infer one.
 
+A release of the Chinese fork is named after the upstream release it derives
+from plus a `c`: `v0.4.7c` is upstream v0.4.7 with the work carried here, and
+it replaced the fork's own `v0.5.0` line (2026-11-28). The letter says "this
+upstream version, in Chinese"; the number itself never claims a milestone the
+upstream port has not shipped. `version.sh`, the release workflow's tag filter
+and the updater's parser (`platform/3ds/source/update_manifest.c`) all accept
+one trailing lowercase letter; the three numbers still order the build, so
+`0.4.7c` ranks exactly on `0.4.7` and below `0.4.8`.
+
 - The version is derived from git by `platform/3ds/tools/version.sh`: an exact
-  `vX.Y.Z` tag gives `X.Y.Z`; anything on (or cut from) `release/vX.Y.Z` gives
+  `vX.Y.Z` tag (or `vX.Y.Zc`) gives `X.Y.Z` (`X.Y.Zc`); anything on (or cut
+  from) `release/vX.Y.Z` gives
   `X.Y.Z-dev.<commits since main>[.<commits since the release branch>]+<hash>`.
   Nothing to bump by hand.
-- **Only three-component tags are ours.** Upstream tags with two components
-  (`v2.1`, `v2.2-E1`) and those tags are in this repository too; the version
-  script, the release workflow (`v[0-9]+.[0-9]+.[0-9]+`) and `git describe
+- **Only three-component tags are ours**, plus the fork's one-letter suffix.
+  Upstream tags with two components (`v2.1`, `v2.2-E1`) and those tags are in
+  this repository too; the version script, the release workflow
+  (`v[0-9]+.[0-9]+.[0-9]+` and `v[0-9]+.[0-9]+.[0-9]+[a-z]`) and `git describe
   --match` all ignore them. Never create a two-component tag.
 - The upstream version this fork is based on is `platform/3ds/upstream_version.txt`,
   shown next to ours (boot console, dumps, OPTIONS footer).
@@ -106,16 +117,23 @@ Minor = milestone, patch = fix round. Ask before a minor bump; never infer one.
 
 ### Releases (installer on GitHub)
 
-`.github/workflows/build-release.yml` builds the CIA on any `vX.Y.Z` tag push (and
-on manual dispatch) and publishes a GitHub Release with it and a QR code. No 3DSX:
-from the Homebrew Launcher the game does not get enough memory (owner, 2026-10-11);
-`build.sh` still makes one locally. The channel depends on whether `main` can reach the tagged commit:
+`.github/workflows/build-release.yml` builds the CIA on any `vX.Y.Z` (or
+`vX.Y.Zc`) tag push (and on manual dispatch) and publishes a GitHub Release with
+it and a QR code. No 3DSX: from the Homebrew Launcher the game does not get
+enough memory (owner, 2026-10-11); `build.sh` still makes one locally. The
+channel depends on whether `main` can reach the tagged commit:
 
 | Built from | Channel |
 |---|---|
 | Tag on an unmerged `release/*` branch | `Beta` (pre-release) |
 | Tag on `main`, or on a commit merged into `main` | `Release` |
 | Manual dispatch on any branch | `Beta` |
+
+The run also deletes the release pages listed in its "Retire the releases this
+one replaces" step, tag included, before the checkout: a page left behind would
+keep being offered by the updater (`0.5.0` outranks `0.4.7c`) and the changelog
+would start after it. Add a tag to that list when a page is superseded, and
+leave older pages alone otherwise.
 
 `.github/workflows/build-3ds.yml` only compiles (debug tools on) for pull requests
 and pushes to `main` and `release/**`; it publishes nothing.

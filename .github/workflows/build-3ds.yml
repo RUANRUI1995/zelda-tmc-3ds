@@ -41,6 +41,29 @@ jobs:
             -o "${RUNNER_TEMP}/text_i18n_test"
           "${RUNNER_TEMP}/text_i18n_test"
 
+  updater:
+    name: Updater version parsing (host test)
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitarm:20260610
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # The version ordering decides whether a release is offered at all: a tag
+      # the parser rejects makes CHECK FOR UPDATE a silent no-op on every
+      # console. This fork's tags carry a letter (v0.4.7c), so the rule is
+      # checked here rather than on hardware. Needs jansson, not the ARM tools.
+      - name: Build and run update_manifest_test
+        run: |
+          command -v cc > /dev/null || (apt-get update -qq && apt-get install -y -qq gcc > /dev/null)
+          apt-get update -qq && apt-get install -y -qq libjansson-dev > /dev/null
+          cc -std=c11 -Wall -Wextra -Iplatform/3ds/source \
+            platform/3ds/source/update_manifest.c platform/3ds/tests/update_manifest_test.c \
+            -ljansson -o "${RUNNER_TEMP}/update_manifest_test"
+          "${RUNNER_TEMP}/update_manifest_test"
+
   build:
     name: 3DS packages (${{ matrix.region }} baseline, debug tools)
     runs-on: ubuntu-latest
